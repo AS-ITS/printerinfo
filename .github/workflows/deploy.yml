@@ -55,7 +55,7 @@ jobs:
 
       # 5. 部署到 GitHub Pages 分支
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # 要發布到網頁的目錄（目前根目錄下有 index.html 與產出的 data.json）
