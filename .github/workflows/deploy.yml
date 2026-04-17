@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Private Repo
         uses: actions/checkout@v3
         with:
-          repository: 你的帳號/你的私有Repo名
+          repository: AS-ITS/printer-data
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: private-data # 存放到這個資料夾
 
