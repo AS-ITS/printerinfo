@@ -4,156 +4,106 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 )
 
-// PrinterData 定義與 CSV 欄位對應的結構
-type PrinterData struct {
+type PrinterStats struct {
 	IP       string `json:"ip"`
 	Location string `json:"location"`
-	Model    string `json:"model"`
-	Total    int    `json:"total"`
-	Print    int    `json:"print"`
-	Copy     int    `json:"copy"`
-	Scan     int    `json:"scan"`
+	Total    int    `json:"total"` // 這裡指增量
 	Date     string `json:"date"`
 }
 
-// readCSV 負責讀取單一 CSV 檔案並轉換為 Map，以 IP 為 Key
-func readCSV(path string) (map[string]PrinterData, error) {
+type OutputData struct {
+	Daily   []PrinterStats `json:"daily"`
+	Monthly []PrinterStats `json:"monthly"`
+	Yearly  []PrinterStats `json:"yearly"`
+}
+
+func readCSV(path string) (map[string]PrinterStats, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("無法開啟檔案 %s: %v", path, err)
+		return nil, err
 	}
 	defer f.Close()
 
-	reader := csv.NewReader(f)
-	// 讀取所有內容
-	records, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("解析 CSV 失敗 %s: %v", path, err)
-	}
-
-	dataMap := make(map[string]PrinterData)
+	records, _ := csv.NewReader(f).ReadAll()
+	data := make(map[string]PrinterStats)
 	for i, r := range records {
-		// 跳過首行標題或空行
 		if i == 0 || len(r) < 11 {
 			continue
 		}
-
-		// 嚴謹的數值轉換：若資料異常則設為 0，避免程式崩潰
 		total, _ := strconv.Atoi(r[3])
-		printVal, _ := strconv.Atoi(r[4])
-		copyVal, _ := strconv.Atoi(r[5])
-		scanVal, _ := strconv.Atoi(r[6])
-
-		dataMap[r[0]] = PrinterData{
-			IP:       r[0],
-			Location: r[1],
-			Model:    r[2],
-			Total:    total,
-			Print:    printVal,
-			Copy:     copyVal,
-			Scan:     scanVal,
-			Date:     r[10],
-		}
+		data[r[0]] = PrinterStats{IP: r[0], Location: r[1], Total: total, Date: r[10]}
 	}
-	return dataMap, nil
+	return data, nil
+}
+
+// 計算差值並排序
+func calculateDiff(latest, base map[string]PrinterStats) []PrinterStats {
+	var result []PrinterStats
+	for ip, now := range latest {
+		val := now.Total
+		if prev, ok := base[ip]; ok {
+			val = now.Total - prev.Total
+		}
+		if val < 0 {
+			val = 0
+		}
+		result = append(result, PrinterStats{IP: ip, Location: now.Location, Total: val, Date: now.Date})
+	}
+	// 依照 Total 排序 (由大到小)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Total > result[j].Total
+	})
+	return result
 }
 
 func main() {
-	// 1. 取得所有 CSV 檔案
-	dataPath := "private-data/data/*.csv" // 根據你的資料夾結構調整
-	files, err := filepath.Glob(dataPath)
-	if err != nil {
-		log.Fatalf("搜尋路徑錯誤: %v", err)
-	}
-
-	// 2. 排序檔案 (按日期 yyyy-mm-dd.csv 排序)
+	files, _ := filepath.Glob("private-data/*.csv")
 	sort.Strings(files)
-
-	// 檢查檔案數量
-	if len(files) == 0 {
-		fmt.Println("錯誤：找不到任何 CSV 數據檔案。")
-		os.Exit(0) // 正常結束，避免 GitHub Action 顯示紅燈
+	if len(files) < 1 {
+		return
 	}
 
-	if len(files) < 2 {
-		fmt.Printf("提示：目前僅有 %d 個檔案，無法計算差額。需至少兩份數據。\n", len(files))
-		// 如果只有一份檔案，我們可以直接輸出該份資料作為基準，或者結束
-		os.Exit(0)
-	}
+	latestFile := files[len(files)-1]
+	latestData, _ := readCSV(latestFile)
 
-	// 3. 讀取最後兩天的資料 (前一天 vs 今天)
-	prevFile := files[len(files)-2]
-	todayFile := files[len(files)-1]
+	// 找到基準檔案
+	var prevDayFile, monthStartFile, yearStartFile string
+	currentDate := filepath.Base(latestFile) // yyyy-mm-dd.csv
+	currentMonth := currentDate[:7]          // yyyy-mm
+	currentYear := currentDate[:4]           // yyyy
 
-	fmt.Printf("正在處理資料：[%s] 與 [%s]\n", prevFile, todayFile)
-
-	prevDay, err := readCSV(prevFile)
-	if err != nil {
-		log.Printf("警告：讀取前一天資料失敗: %v", err)
-		os.Exit(0)
-	}
-
-	today, err := readCSV(todayFile)
-	if err != nil {
-		log.Printf("警告：讀取今日資料失敗: %v", err)
-		os.Exit(0)
-	}
-
-	// 4. 計算今日增量
-	var dailyUsage []PrinterData
-	for ip, now := range today {
-		before, ok := prevDay[ip]
-		if !ok {
-			// 如果這台印表機是新加入的，沒有昨日數據，則增量設為 0 或今日總量
-			dailyUsage = append(dailyUsage, PrinterData{
-				IP:       now.IP,
-				Location: now.Location,
-				Model:    now.Model,
-				Total:    0,
-				Date:     now.Date,
-			})
-			continue
+	for _, f := range files {
+		name := filepath.Base(f)
+		if name < currentDate && (prevDayFile == "" || name > filepath.Base(prevDayFile)) {
+			prevDayFile = f
 		}
-
-		// 計算差值 (今日總數 - 昨日總數)
-		// 注意：若遇到印表機計數器歸零（例如更換主機板），差值可能為負，這裡取 0
-		calcUsage := func(n, b int) int {
-			res := n - b
-			if res < 0 {
-				return 0
-			}
-			return res
+		if strings.HasPrefix(name, currentMonth) && (monthStartFile == "" || name < filepath.Base(monthStartFile)) {
+			monthStartFile = f
 		}
-
-		dailyUsage = append(dailyUsage, PrinterData{
-			IP:       now.IP,
-			Location: now.Location,
-			Model:    now.Model,
-			Total:    calcUsage(now.Total, before.Total),
-			Print:    calcUsage(now.Print, before.Print),
-			Copy:     calcUsage(now.Copy, before.Copy),
-			Scan:     calcUsage(now.Scan, before.Scan),
-			Date:     now.Date,
-		})
+		if strings.HasPrefix(name, currentYear) && (yearStartFile == "" || name < filepath.Base(yearStartFile)) {
+			yearStartFile = f
+		}
 	}
 
-	// 5. 輸出 JSON
-	jsonData, err := json.MarshalIndent(dailyUsage, "", "  ")
-	if err != nil {
-		log.Fatalf("JSON 編碼失敗: %v", err)
+	// 讀取基準數據
+	dBase, _ := readCSV(prevDayFile)
+	mBase, _ := readCSV(monthStartFile)
+	yBase, _ := readCSV(yearStartFile)
+
+	output := OutputData{
+		Daily:   calculateDiff(latestData, dBase),
+		Monthly: calculateDiff(latestData, mBase),
+		Yearly:  calculateDiff(latestData, yBase),
 	}
 
-	err = os.WriteFile("data.json", jsonData, 0644)
-	if err != nil {
-		log.Fatalf("寫入檔案失敗: %v", err)
-	}
-
-	fmt.Println("成功：data.json 已更新。")
+	jsonBytes, _ := json.MarshalIndent(output, "", "  ")
+	_ = os.WriteFile("data.json", jsonBytes, 0644)
+	fmt.Println("統計完成，已依照列印量排序。")
 }

@@ -4,54 +4,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>印表機使用量監控</title>
+    <title>印表機用量排版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
-    <nav class="bg-blue-700 text-white p-4 shadow-lg">
-        <div class="container mx-auto font-bold text-xl text-center md:text-left">
-            🖨️ 印表機數據中心
-        </div>
-    </nav>
+<body class="bg-gray-50 p-4">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">📊 列印量排行榜</h1>
+        </header>
 
-    <main class="container mx-auto p-4 md:py-10">
-        <div id="dashboard" hx-get="data.json" hx-trigger="load" hx-swap="innerHTML"
-            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-            <div class="text-center col-span-full py-10 text-gray-500">
-                正在讀取最新數據...
-            </div>
+        <div class="flex space-x-2 mb-6 bg-white p-1 rounded-lg shadow-sm border">
+            <button onclick="showTab('daily')" id="btn-daily"
+                class="tab-btn flex-1 py-2 rounded-md bg-blue-600 text-white font-medium">本日</button>
+            <button onclick="showTab('monthly')" id="btn-monthly"
+                class="tab-btn flex-1 py-2 rounded-md text-gray-600 hover:bg-gray-100">本月</button>
+            <button onclick="showTab('yearly')" id="btn-yearly"
+                class="tab-btn flex-1 py-2 rounded-md text-gray-600 hover:bg-gray-100">本年</button>
         </div>
-    </main>
+
+        <div id="stats-list" class="space-y-4">
+        </div>
+    </div>
 
     <script>
-        document.body.addEventListener('htmx:afterRequest', function (evt) {
-            if (evt.detail.pathInfo.requestPath === 'data.json') {
-                const data = JSON.parse(evt.detail.xhr.responseText);
-                const container = document.getElementById('dashboard');
+        let allData = {};
 
-                container.innerHTML = data.map(item => `
-                    <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-800">${item.location}</h3>
-                                <p class="text-sm text-gray-500">${item.model}</p>
-                            </div>
-                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">${item.ip}</span>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">今日總印量</span>
-                                <span class="font-bold text-2xl text-blue-600">${item.total}</span>
-                            </div>
-                            <div class="text-xs text-gray-400 text-right">更新日期：${item.date}</div>
-                        </div>
+        // 頁面載入時讀取 JSON
+        fetch('data.json')
+            .then(res => res.json())
+            .then(data => {
+                allData = data;
+                showTab('daily'); // 預設顯示本日
+            });
+
+        function showTab(type) {
+            // 切換按鈕樣式
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('text-gray-600');
+            });
+            document.getElementById('btn-' + type).classList.add('bg-blue-600', 'text-white');
+
+            // 渲染列表
+            const container = document.getElementById('stats-list');
+            const list = allData[type];
+
+            container.innerHTML = list.map((item, index) => `
+                <div class="flex items-center bg-white p-4 rounded-xl shadow-sm border-l-4 ${index < 3 ? 'border-orange-400' : 'border-blue-400'}">
+                    <div class="text-2xl font-black text-gray-300 mr-4 w-8">#${index + 1}</div>
+                    <div class="flex-1">
+                        <div class="font-bold text-gray-700">${item.location}</div>
+                        <div class="text-xs text-gray-400">${item.ip}</div>
                     </div>
-                `).join('');
-            }
-        });
+                    <div class="text-right">
+                        <div class="text-xl font-bold text-blue-600">${item.total.toLocaleString()}</div>
+                        <div class="text-[10px] text-gray-400 uppercase">張數</div>
+                    </div>
+                </div>
+            `).join('');
+        }
     </script>
 </body>
 
