@@ -82,7 +82,7 @@ func calculateDiff(latest, base map[string]PrinterStats) []PrinterStats {
 
 func main() {
 	// 假設 Private Repo 檢出在 private-data 目錄下
-	files, _ := filepath.Glob("private-data/*.csv")
+	files, _ := filepath.Glob("private-data/data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
