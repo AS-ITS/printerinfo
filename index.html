@@ -4,56 +4,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>印表機使用量看板</title>
+    <title>印表機使用量監控</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 
-<body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold mb-6 text-gray-800">🖨️ 今日印表機使用統計</h1>
-
-        <div hx-get="data.json" hx-trigger="load" hx-swap="innerHTML"
-            class="overflow-x-auto bg-white rounded-lg shadow">
-
-            <template id="table-template">
-                <table class="min-w-full leading-normal">
-                    <thead>
-                        <tr class="bg-blue-600 text-white">
-                            <th class="px-5 py-3 border-b-2 text-left text-sm font-semibold uppercase">位置</th>
-                            <th class="px-5 py-3 border-b-2 text-left text-sm font-semibold uppercase">型號</th>
-                            <th class="px-5 py-3 border-b-2 text-left text-sm font-semibold uppercase">總用量</th>
-                            <th class="px-5 py-3 border-b-2 text-left text-sm font-semibold uppercase">列印/影印</th>
-                        </tr>
-                    </thead>
-                    <tbody id="data-body"></tbody>
-                </table>
-            </template>
+<body class="bg-slate-50 min-h-screen">
+    <nav class="bg-blue-700 text-white p-4 shadow-lg">
+        <div class="container mx-auto font-bold text-xl text-center md:text-left">
+            🖨️ 印表機數據中心
         </div>
-    </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:py-10">
+        <div id="dashboard" hx-get="data.json" hx-trigger="load" hx-swap="innerHTML"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <div class="text-center col-span-full py-10 text-gray-500">
+                正在讀取最新數據...
+            </div>
+        </div>
+    </main>
 
     <script>
-        // 簡單的處理腳本，將 JSON 渲染進表格
         document.body.addEventListener('htmx:afterRequest', function (evt) {
             if (evt.detail.pathInfo.requestPath === 'data.json') {
                 const data = JSON.parse(evt.detail.xhr.responseText);
-                const tbody = document.querySelector('#data-body');
-                if (!tbody) {
-                    // 如果是第一次載入，先放入 template
-                    const container = evt.detail.target;
-                    const temp = document.getElementById('table-template');
-                    container.innerHTML = temp.innerHTML;
-                }
-                const targetBody = document.querySelector('#data-body');
-                data.forEach(item => {
-                    const row = `<tr>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.location}</td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.model}</td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm font-bold text-blue-600">${item.total}</td>
-                        <td class="px-5 py-5 border-b border-gray-200 bg-white text-sm">${item.print} / ${item.copy}</td>
-                    </tr>`;
-                    targetBody.innerHTML += row;
-                });
+                const container = document.getElementById('dashboard');
+
+                container.innerHTML = data.map(item => `
+                    <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800">${item.location}</h3>
+                                <p class="text-sm text-gray-500">${item.model}</p>
+                            </div>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">${item.ip}</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">今日總印量</span>
+                                <span class="font-bold text-2xl text-blue-600">${item.total}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 text-right">更新日期：${item.date}</div>
+                        </div>
+                    </div>
+                `).join('');
             }
         });
     </script>
