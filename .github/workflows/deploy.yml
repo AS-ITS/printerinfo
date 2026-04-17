@@ -27,9 +27,10 @@ jobs:
           # 請將下面的路徑替換成你的私有 Repo 實際路徑
           repository: AS-ITS/printer-data
           # 使用你在 Secret 中設定的 Token
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }} 
           # 將私有資料下載到名為 private-data 的資料夾
           path: private-data
+          persist-credentials: false # 建議加入這一行，避免 Token 衝突
 
       # 3. 設定 Go 語言環境
       - name: Set up Go
