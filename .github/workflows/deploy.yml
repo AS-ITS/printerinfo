@@ -14,15 +14,18 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # 加入這兩行
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       # 1. 檢出 Public Repo (本專案，含 main.go 與 index.html)
       - name: Checkout Public Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 2. 檢出 Private Repo (含有資料集的儲存庫)
       - name: Checkout Private Data Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # 請將下面的路徑替換成你的私有 Repo 實際路徑
           repository: AS-ITS/printer-data
