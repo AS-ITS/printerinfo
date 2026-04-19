@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer Analytics | Glass Edition</title>
+    <title>Printer Analytics | High Visibility Glass</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -12,173 +12,187 @@
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #4338ca 100%);
+            /* 深色調漸層提升對比 */
             background-attachment: fixed;
         }
 
-        /* Glassmorphism Utility */
+        /* 強化毛玻璃效果，增加背景深度 */
         .glass-panel {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.3);
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .glass-card:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         .modal-glass {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(15, 23, 42, 0.85);
+            /* Modal 使用深色玻璃增加文字可讀性 */
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .tab-active {
-            background: rgba(255, 255, 255, 0.3) !important;
-            border-bottom: 2px solid white;
+            background: rgba(255, 255, 255, 0.25) !important;
+            border-bottom: 3px solid #818cf8;
+            /* indigo-400 */
             color: white !important;
         }
 
-        /* 隱藏滾動條但保留功能 */
+        /* 自定義捲軸 */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: transparent;
+            background: rgba(0, 0, 0, 0.1);
         }
 
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
 
-<body class="min-h-screen text-white/90 pb-12">
+<body class="min-h-screen text-slate-100 pb-16">
 
-    <nav class="glass-panel sticky top-0 z-40 px-6 py-4 mb-8">
+    <nav class="glass-panel sticky top-0 z-40 px-8 py-5 mb-10">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-white/20 rounded-xl">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="flex items-center gap-4">
+                <div class="p-2.5 bg-indigo-500/30 rounded-2xl border border-indigo-400/30">
+                    <svg class="w-7 h-7 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                     </svg>
                 </div>
-                <h1 class="text-xl font-extrabold tracking-tight">PRINTER<span class="text-indigo-300">CORE</span></h1>
+                <h1 class="text-2xl font-extrabold tracking-tighter italic">PRINTER<span
+                        class="text-indigo-400">CORE</span></h1>
             </div>
-            <div id="last-update" class="text-xs font-medium text-white/60 tracking-widest uppercase">Syncing...</div>
+            <div id="last-update"
+                class="text-sm font-bold text-slate-400 tracking-widest uppercase bg-black/20 px-4 py-1.5 rounded-full">
+                Syncing...</div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6">
+    <main class="max-w-7xl mx-auto px-6 sm:px-8">
 
-        <div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-end gap-8 mb-10">
             <div>
-                <p class="text-indigo-200 font-bold text-sm uppercase tracking-widest mb-1">Status Overview</p>
-                <h2 class="text-4xl font-extrabold">監控儀表板</h2>
+                <p class="text-indigo-300 font-bold text-base uppercase tracking-[0.2em] mb-2">Real-time Analytics</p>
+                <h2 class="text-5xl font-extrabold tracking-tight">監控儀表板</h2>
             </div>
 
-            <div class="flex gap-2 p-1.5 glass-panel rounded-2xl">
+            <div class="flex gap-3 p-2 glass-panel rounded-2xl">
                 <button onclick="updateView('daily', this)"
-                    class="period-btn px-6 py-2.5 rounded-xl text-sm font-bold text-white/70 hover:text-white transition-all tab-active">Daily</button>
+                    class="period-btn px-8 py-3 rounded-xl text-base font-bold text-slate-300 hover:text-white transition-all tab-active">Daily</button>
                 <button onclick="updateView('monthly', this)"
-                    class="period-btn px-6 py-2.5 rounded-xl text-sm font-bold text-white/70 hover:text-white transition-all">Monthly</button>
+                    class="period-btn px-8 py-3 rounded-xl text-base font-bold text-slate-300 hover:text-white transition-all">Monthly</button>
                 <button onclick="updateView('yearly', this)"
-                    class="period-btn px-6 py-2.5 rounded-xl text-sm font-bold text-white/70 hover:text-white transition-all">Yearly</button>
+                    class="period-btn px-8 py-3 rounded-xl text-base font-bold text-slate-300 hover:text-white transition-all">Yearly</button>
             </div>
         </div>
 
-        <div class="glass-panel p-8 rounded-3xl mb-8">
-            <div class="flex items-center justify-between mb-8">
-                <h3 class="text-lg font-bold flex items-center gap-2">
-                    <span class="w-1.5 h-5 bg-white rounded-full"></span>
+        <div class="glass-panel p-10 rounded-[2.5rem] mb-10">
+            <div class="flex items-center justify-between mb-10">
+                <h3 class="text-xl font-bold flex items-center gap-3">
+                    <span class="w-2 h-7 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.6)]"></span>
                     使用量 TOP 10 排名
                 </h3>
             </div>
-            <div id="main-chart" class="w-full h-80"></div>
+            <div id="main-chart" class="w-full h-96"></div>
         </div>
 
-        <div class="glass-panel rounded-3xl overflow-hidden">
+        <div class="glass-panel rounded-[2.5rem] overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="bg-white/10 text-white/60 text-xs font-black uppercase tracking-widest">
-                            <th class="px-8 py-5">放置地點 / IP</th>
-                            <th class="px-6 py-5">設備型號</th>
-                            <th class="px-6 py-5 text-center">列印</th>
-                            <th class="px-6 py-5 text-center">影印</th>
-                            <th class="px-6 py-5 text-center text-indigo-300">總增量</th>
-                            <th class="px-8 py-5 text-right">操作</th>
+                        <tr class="bg-black/20 text-indigo-200 text-sm font-black uppercase tracking-[0.15em]">
+                            <th class="px-10 py-6">放置地點 / IP</th>
+                            <th class="px-8 py-6">設備型號</th>
+                            <th class="px-6 py-6 text-center">列印</th>
+                            <th class="px-6 py-6 text-center">影印</th>
+                            <th class="px-6 py-6 text-center text-white">總計增量</th>
+                            <th class="px-10 py-6 text-right">操作</th>
                         </tr>
                     </thead>
-                    <tbody id="printer-table-body" class="divide-y divide-white/5">
+                    <tbody id="printer-table-body" class="divide-y divide-white/10">
                     </tbody>
                 </table>
             </div>
         </div>
     </main>
 
-    <div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-md" onclick="closeModal()"></div>
         <div
-            class="modal-glass w-full max-w-2xl rounded-3xl shadow-2xl relative animate-in fade-in zoom-in duration-300">
-            <div class="p-8">
-                <div class="flex justify-between items-start mb-8">
+            class="modal-glass w-full max-w-3xl rounded-[3rem] shadow-2xl relative animate-in fade-in zoom-in duration-300 border border-white/20">
+            <div class="p-10">
+                <div class="flex justify-between items-start mb-10">
                     <div>
-                        <h3 class="text-3xl font-black text-white mb-2" id="modal-printer-name">裝置詳細資訊</h3>
-                        <p id="m-ip" class="text-indigo-200 font-mono text-sm tracking-widest uppercase"></p>
+                        <h3 class="text-4xl font-black text-white mb-3" id="modal-printer-name">裝置詳細資訊</h3>
+                        <p id="m-ip"
+                            class="text-indigo-300 font-mono text-base tracking-widest uppercase bg-indigo-500/10 px-3 py-1 rounded-lg inline-block">
+                        </p>
                     </div>
-                    <button onclick="closeModal()" class="p-2 hover:bg-white/10 rounded-full transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="closeModal()"
+                        class="p-3 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="glass-card p-5 rounded-2xl">
-                        <p class="text-[10px] font-black text-white/40 uppercase mb-1">Model</p>
-                        <p id="m-model" class="font-bold"></p>
+                <div class="grid grid-cols-2 gap-6 mb-10">
+                    <div class="glass-card p-6 rounded-3xl">
+                        <p class="text-xs font-black text-indigo-300/60 uppercase mb-2 tracking-widest">Device Model</p>
+                        <p id="m-model" class="text-xl font-bold text-white"></p>
                     </div>
-                    <div class="glass-card p-5 rounded-2xl">
-                        <p class="text-[10px] font-black text-white/40 uppercase mb-1">Absolute Total</p>
-                        <p id="m-raw-total" class="font-bold text-indigo-300"></p>
+                    <div class="glass-card p-6 rounded-3xl">
+                        <p class="text-xs font-black text-emerald-300/60 uppercase mb-2 tracking-widest">Counter Total
+                        </p>
+                        <p id="m-raw-total" class="text-xl font-bold text-emerald-300"></p>
                     </div>
                 </div>
 
-                <div class="glass-card rounded-2xl overflow-hidden">
-                    <table class="w-full text-center">
-                        <thead class="bg-white/5 text-[10px] font-black uppercase text-white/40">
+                <div class="glass-card rounded-3xl overflow-hidden mb-10">
+                    <table class="w-full text-center border-collapse">
+                        <thead class="bg-white/5 text-xs font-black uppercase text-slate-400 tracking-widest">
                             <tr>
-                                <th class="py-4 border-b border-white/5">週期</th>
-                                <th class="py-4 border-b border-white/5">列印</th>
-                                <th class="py-4 border-b border-white/5">影印</th>
-                                <th class="py-4 border-b border-white/5">傳真</th>
-                                <th class="py-4 border-b border-white/5 text-white">總量</th>
+                                <th class="py-5 border-b border-white/5">週期</th>
+                                <th class="py-5 border-b border-white/5 text-indigo-200">列印</th>
+                                <th class="py-5 border-b border-white/5 text-emerald-200">影印</th>
+                                <th class="py-5 border-b border-white/5 text-amber-200">傳真</th>
+                                <th class="py-5 border-b border-white/5 text-white">總量</th>
                             </tr>
                         </thead>
-                        <tbody id="modal-stats-body" class="text-sm font-semibold"></tbody>
+                        <tbody id="modal-stats-body" class="text-base font-bold text-slate-200">
+                        </tbody>
                     </table>
                 </div>
 
-                <div class="mt-8">
-                    <button onclick="closeModal()"
-                        class="w-full py-4 bg-white text-indigo-900 rounded-2xl font-black hover:bg-indigo-50 transition-colors shadow-xl">CLOSE
-                        PANEL</button>
-                </div>
+                <button onclick="closeModal()"
+                    class="w-full py-5 bg-indigo-500 hover:bg-indigo-400 text-white rounded-2xl font-black text-lg transition-all shadow-[0_0_25px_rgba(99,102,241,0.4)] uppercase tracking-widest">Close
+                    Detailed View</button>
             </div>
         </div>
     </div>
@@ -191,10 +205,11 @@
             try {
                 const response = await fetch('data.json');
                 printerData = await response.json();
-                document.getElementById('last-update').innerText = `Sync: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('last-update').innerText = `Sync: ${new Date().toLocaleTimeString('zh-TW')}`;
                 render(currentPeriod);
             } catch (e) {
                 console.error('Data load failed', e);
+                document.getElementById('last-update').innerText = 'Sync Error';
             }
         }
 
@@ -213,46 +228,59 @@
         function renderChart(period) {
             const container = d3.select("#main-chart");
             const width = container.node().getBoundingClientRect().width;
-            const height = 320;
+            const height = 384; // 增加圖表高度
             container.selectAll("*").remove();
 
             const svg = container.append("svg").attr("width", width).attr("height", height)
-                .append("g").attr("transform", "translate(40, 20)");
+                .append("g").attr("transform", "translate(50, 30)");
 
             const sortedData = [...printerData].sort((a, b) => b[period].total - a[period].total).slice(0, 10);
 
-            const x = d3.scaleBand().range([0, width - 60]).domain(sortedData.map(d => d.location)).padding(0.4);
-            const y = d3.scaleLinear().range([height - 80, 0]).domain([0, d3.max(sortedData, d => d[period].total) * 1.1 || 10]);
+            const x = d3.scaleBand().range([0, width - 80]).domain(sortedData.map(d => d.location)).padding(0.4);
+            const y = d3.scaleLinear().range([height - 100, 0]).domain([0, d3.max(sortedData, d => d[period].total) * 1.1 || 10]);
 
-            // 座標軸樣式自訂
-            const xAxis = svg.append("g").attr("transform", `translate(0, ${height - 80})`).call(d3.axisBottom(x));
-            xAxis.selectAll("text").attr("transform", "rotate(-20)").style("text-anchor", "end").style("fill", "rgba(255,255,255,0.6)").style("font-size", "11px");
-            xAxis.select(".domain").attr("stroke", "rgba(255,255,255,0.2)");
+            // X 軸
+            const xAxis = svg.append("g").attr("transform", `translate(0, ${height - 100})`).call(d3.axisBottom(x));
+            xAxis.selectAll("text").attr("transform", "rotate(-25)").style("text-anchor", "end").style("fill", "#94a3b8").style("font-size", "13px").style("font-weight", "600");
+            xAxis.select(".domain").attr("stroke", "rgba(255,255,255,0.1)");
+            xAxis.selectAll(".tick line").attr("stroke", "rgba(255,255,255,0.1)");
 
-            svg.selectAll(".bar")
-                .data(sortedData).enter().append("rect")
+            // Y 軸
+            const yAxis = svg.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-width + 80));
+            yAxis.selectAll("text").style("fill", "#94a3b8").style("font-size", "12px");
+            yAxis.select(".domain").remove();
+            yAxis.selectAll(".tick line").attr("stroke", "rgba(255,255,255,0.05)").attr("stroke-dasharray", "5,5");
+
+            // 長條
+            const bars = svg.selectAll(".bar").data(sortedData).enter().append("rect")
                 .attr("x", d => x(d.location))
                 .attr("y", d => y(d[period].total))
                 .attr("width", x.bandwidth())
-                .attr("height", d => (height - 80) - y(d[period].total))
-                .attr("fill", "rgba(255,255,255,0.8)")
-                .attr("rx", 6);
+                .attr("height", d => (height - 100) - y(d[period].total))
+                .attr("fill", "url(#barGradient)")
+                .attr("rx", 8);
+
+            // 定義漸層
+            const defs = svg.append("defs");
+            const gradient = defs.append("linearGradient").attr("id", "barGradient").attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
+            gradient.append("stop").attr("offset", "0%").attr("stop-color", "#818cf8");
+            gradient.append("stop").attr("offset", "100%").attr("stop-color", "#4f46e5");
         }
 
         function renderTable(period) {
             const tbody = document.getElementById('printer-table-body');
             tbody.innerHTML = printerData.map(d => `
-                <tr class="hover:bg-white/5 transition-colors group">
-                    <td class="px-8 py-5">
-                        <div class="font-bold text-white">${d.location}</div>
-                        <div class="text-[10px] text-white/40 font-mono uppercase tracking-tighter">${d.ip}</div>
+                <tr class="hover:bg-white/5 transition-all group">
+                    <td class="px-10 py-7">
+                        <div class="text-lg font-extrabold text-white group-hover:text-indigo-300 transition-colors">${d.location}</div>
+                        <div class="text-sm text-slate-400 font-mono mt-1">${d.ip}</div>
                     </td>
-                    <td class="px-6 py-5 text-sm font-medium text-white/70">${d.model}</td>
-                    <td class="px-6 py-5 text-center text-sm font-bold">${d[period].print.toLocaleString()}</td>
-                    <td class="px-6 py-5 text-center text-sm font-bold">${d[period].copy.toLocaleString()}</td>
-                    <td class="px-6 py-5 text-center text-sm font-black text-indigo-300">${d[period].total.toLocaleString()}</td>
-                    <td class="px-8 py-5 text-right">
-                        <button onclick="showPrinterDetail('${d.ip}')" class="px-4 py-2 bg-white/10 hover:bg-white text-white hover:text-indigo-900 text-xs font-black rounded-xl transition-all uppercase tracking-widest">Detail</button>
+                    <td class="px-8 py-7 text-base font-semibold text-slate-300">${d.model}</td>
+                    <td class="px-6 py-7 text-center text-base font-bold text-indigo-100">${d[period].print.toLocaleString()}</td>
+                    <td class="px-6 py-7 text-center text-base font-bold text-emerald-200">${d[period].copy.toLocaleString()}</td>
+                    <td class="px-6 py-7 text-center text-lg font-black text-white">${d[period].total.toLocaleString()}</td>
+                    <td class="px-10 py-7 text-right">
+                        <button onclick="showPrinterDetail('${d.ip}')" class="px-6 py-2.5 bg-white/10 hover:bg-white text-white hover:text-indigo-900 text-sm font-black rounded-xl transition-all uppercase tracking-widest border border-white/10">Detail</button>
                     </td>
                 </tr>
             `).join('');
@@ -268,26 +296,28 @@
             document.getElementById('m-raw-total').innerText = p.raw_total.toLocaleString();
 
             const rows = [
-                { l: 'Daily', k: 'daily' },
-                { l: 'Monthly', k: 'monthly' },
-                { l: 'Yearly', k: 'yearly' }
+                { l: 'Today Change', k: 'daily', c: 'text-indigo-300' },
+                { l: 'Monthly Accum.', k: 'monthly', c: 'text-emerald-300' },
+                { l: 'Yearly Accum.', k: 'yearly', c: 'text-amber-300' }
             ];
 
             document.getElementById('modal-stats-body').innerHTML = rows.map(r => `
-                <tr class="border-b border-white/5">
-                    <td class="py-5 text-white/60 font-black uppercase text-[10px]">${r.l}</td>
-                    <td class="py-5">${p[r.k].print}</td>
-                    <td class="py-5">${p[r.k].copy}</td>
-                    <td class="py-5">${p[r.k].fax}</td>
-                    <td class="py-5 text-indigo-300 font-black">${p[r.k].total}</td>
+                <tr class="border-b border-white/5 group hover:bg-white/5 transition-colors">
+                    <td class="py-6 text-slate-400 font-black uppercase text-xs pl-6 text-left">${r.l}</td>
+                    <td class="py-6 text-lg font-bold">${p[r.k].print}</td>
+                    <td class="py-6 text-lg font-bold">${p[r.k].copy}</td>
+                    <td class="py-6 text-lg font-bold">${p[r.k].fax}</td>
+                    <td class="py-6 text-xl font-black ${r.c}">${p[r.k].total}</td>
                 </tr>
             `).join('');
 
             document.getElementById('detail-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
         function closeModal() {
             document.getElementById('detail-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
         }
 
         window.onload = init;
