@@ -25,15 +25,11 @@ type PrinterStats struct {
 	Daily    Metrics `json:"daily"`
 	Monthly  Metrics `json:"monthly"`
 	Yearly   Metrics `json:"yearly"`
-	RawTotal int     `json:"raw_total"` // 用於內部計算
+	RawTotal int     `json:"raw_total"`
 }
 
 func readCSV(path string) (map[string]map[string]int, error) {
 	data := make(map[string]map[string]int)
-	if path == "" {
-		return data, nil
-	}
-
 	f, err := os.Open(path)
 	if err != nil {
 		return data, err
@@ -56,17 +52,17 @@ func readCSV(path string) (map[string]map[string]int, error) {
 	return data, nil
 }
 
-func r_int(s string) int {
-	v, _ := strconv.Atoi(s)
-	return v
-}
+func r_int(s string) int { v, _ := strconv.Atoi(s); return v }
 
-func calculateDelta(current, base map[string]int) Metrics {
+func calculateDelta(cur, base map[string]int) Metrics {
+	if cur == nil || base == nil {
+		return Metrics{}
+	}
 	return Metrics{
-		Print: current["print"] - base["print"],
-		Copy:  current["copy"] - base["copy"],
-		Fax:   current["fax"] - base["fax"],
-		Total: current["total"] - base["total"],
+		Print: cur["print"] - base["print"],
+		Copy:  cur["copy"] - base["copy"],
+		Fax:   cur["fax"] - base["fax"],
+		Total: cur["total"] - base["total"],
 	}
 }
 
@@ -81,52 +77,48 @@ func main() {
 	currentMonth := filepath.Base(latestFile)[:7]
 	currentYear := filepath.Base(latestFile)[:4]
 
-	// 找出基準檔案
 	var dBaseFile, mBaseFile, yBaseFile string
 	if len(files) >= 2 {
 		dBaseFile = files[len(files)-2]
 	} else {
 		dBaseFile = latestFile
 	}
-
 	for _, f := range files {
-		if mBaseFile == "" && strings.HasPrefix(filepath.Base(f), currentMonth) {
+		base := filepath.Base(f)
+		if mBaseFile == "" && strings.HasPrefix(base, currentMonth) {
 			mBaseFile = f
 		}
-		if yBaseFile == "" && strings.HasPrefix(filepath.Base(f), currentYear) {
+		if yBaseFile == "" && strings.HasPrefix(base, currentYear) {
 			yBaseFile = f
 		}
 	}
 
-	latestData, _ := readCSV(latestFile)
+	latest, _ := readCSV(latestFile)
 	dBase, _ := readCSV(dBaseFile)
 	mBase, _ := readCSV(mBaseFile)
 	yBase, _ := readCSV(yBaseFile)
 
-	// 取得基本資訊（從最新檔案讀取地點與型號）
 	f, _ := os.Open(latestFile)
 	records, _ := csv.NewReader(f).ReadAll()
 	f.Close()
 
 	var results []PrinterStats
 	for i, r := range records {
-		if i == 0 {
+		if i == 0 || len(r) < 11 {
 			continue
 		}
 		ip := r[0]
 		stats := PrinterStats{
-			IP:       ip,
-			Location: r[1],
-			Model:    r[2],
-			Daily:    calculateDelta(latestData[ip], dBase[ip]),
-			Monthly:  calculateDelta(latestData[ip], mBase[ip]),
-			Yearly:   calculateDelta(latestData[ip], yBase[ip]),
-			RawTotal: latestData[ip]["total"],
+			IP: ip, Location: r[1], Model: r[2],
+			Daily:    calculateDelta(latest[ip], dBase[ip]),
+			Monthly:  calculateDelta(latest[ip], mBase[ip]),
+			Yearly:   calculateDelta(latest[ip], yBase[ip]),
+			RawTotal: latest[ip]["total"],
 		}
 		results = append(results, stats)
 	}
 
 	output, _ := json.MarshalIndent(results, "", "  ")
 	os.WriteFile("data.json", output, 0644)
-	fmt.Println("data.json generated successfully.")
+	fmt.Println("data.json generated.")
 }
