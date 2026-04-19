@@ -44,7 +44,7 @@ func r_int(s string) int {
 
 func main() {
 	// 假設 CSV 都在同一個目錄
-	files, _ := filepath.Glob("*.csv")
+	files, _ := filepath.Glob("private-data/data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
