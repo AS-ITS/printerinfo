@@ -39,7 +39,7 @@ type PrinterStats struct {
 	Location string     `json:"location"`
 	Model    string     `json:"model"`
 	History  []YearData `json:"history"`
-	Today    Metrics    `json:"today"` // 當日最新增量
+	Today    Metrics    `json:"today"`
 }
 
 func r_int(s string) int {
@@ -58,7 +58,7 @@ func main() {
 	}
 
 	prevCounters := make(map[string]map[string]int)
-	// IP -> Year -> Month -> MonthData
+	// IP -> Year -> Month -> *MonthData
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
@@ -69,6 +69,9 @@ func main() {
 		f.Close()
 
 		base := filepath.Base(file) // yyyy-mm-dd.csv
+		if len(base) < 10 {
+			continue
+		}
 		dateStr := base[:10]
 		year, month := dateStr[:4], dateStr[5:7]
 
@@ -92,19 +95,19 @@ func main() {
 				}
 				if dm.Total < 0 {
 					dm = Metrics{}
-				} // 排除異常
+				}
 
-				// 儲存至月份與每日紀錄
+				// 初始化 IP 層
 				if storage[ip] == nil {
 					storage[ip] = make(map[string]map[string]*MonthData)
 				}
+				// 初始化年份層
 				if storage[ip][year] == nil {
-					storage[ip][year] = make(map[string]*Metrics)
-				} // 修正結構
-
-				// 確保月份結構存在
-				if _, ok := storage[ip][year][month]; !ok {
-					storage[ip][year][month] = &MonthData{Month: month}
+					storage[ip][year] = make(map[string]*MonthData) // 修正點：必須與結構定義一致
+				}
+				// 初始化月份層
+				if storage[ip][year][month] == nil {
+					storage[ip][year][month] = &MonthData{Month: month, DailyLogs: []DailyLog{}}
 				}
 
 				m := storage[ip][year][month]
@@ -114,26 +117,31 @@ func main() {
 				m.MonthMetrics.Fax += dm.Fax
 				m.MonthMetrics.Total += dm.Total
 
-				// 紀錄為最後一天的「今日量」
 				todayMetrics[ip] = dm
 			}
 			prevCounters[ip] = curr
 		}
 	}
 
-	// 轉化為前端格式
 	var result []PrinterStats
 	for ip, years := range storage {
-		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip]}
-		for y, months := range years {
-			yData := YearData{Year: y}
-			var mKeys []string
-			for m := range months {
+		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip], History: []YearData{}}
+
+		yKeys := make([]string, 0, len(years))
+		for y := range years {
+			yKeys = append(yKeys, y)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(yKeys)))
+
+		for _, y := range yKeys {
+			yData := YearData{Year: y, Months: []MonthData{}}
+			mKeys := make([]string, 0, len(years[y]))
+			for m := range years[y] {
 				mKeys = append(mKeys, m)
 			}
 			sort.Strings(mKeys)
 			for _, mk := range mKeys {
-				yData.Months = append(yData.Months, *months[mk])
+				yData.Months = append(yData.Months, *years[y][mk])
 			}
 			p.History = append(p.History, yData)
 		}
@@ -142,5 +150,5 @@ func main() {
 
 	out, _ := json.MarshalIndent(result, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("data.json generated with daily details.")
+	fmt.Println("Success: data.json generated.")
 }
