@@ -1,0 +1,146 @@
+[
+  {
+    "ip": "10.16.10.21",
+    "location": "處長室",
+    "model": "HP Color LaserJet MFP M480",
+    "daily": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 11
+    },
+    "monthly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 8079
+    },
+    "yearly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 8079
+    },
+    "raw_total": 8079
+  },
+  {
+    "ip": "10.16.10.20",
+    "location": "推廣科門口第二台",
+    "model": "HP Color LaserJet M856",
+    "daily": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 253
+    },
+    "monthly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 111766
+    },
+    "yearly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 111766
+    },
+    "raw_total": 111766
+  },
+  {
+    "ip": "10.16.10.22",
+    "location": "推廣科門口第一台",
+    "model": "HP LaserJet 700 M712",
+    "daily": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 2
+    },
+    "monthly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 173854
+    },
+    "yearly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 173854
+    },
+    "raw_total": 173854
+  },
+  {
+    "ip": "10.16.10.11:8000",
+    "location": "資安科門口第一台",
+    "model": "Canon iR-ADV C5535",
+    "daily": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 0
+    },
+    "monthly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 0
+    },
+    "yearly": {
+      "print": 0,
+      "copy": 0,
+      "fax": 0,
+      "total": 0
+    },
+    "raw_total": 0
+  },
+  {
+    "ip": "10.16.10.13",
+    "location": "推廣科門口第三台",
+    "model": "FUJIFILM Apeos 5570",
+    "daily": {
+      "print": 645,
+      "copy": 98,
+      "fax": 0,
+      "total": 743
+    },
+    "monthly": {
+      "print": 19011,
+      "copy": 11070,
+      "fax": 2,
+      "total": 30081
+    },
+    "yearly": {
+      "print": 19011,
+      "copy": 11070,
+      "fax": 2,
+      "total": 30081
+    },
+    "raw_total": 30081
+  },
+  {
+    "ip": "10.16.10.12",
+    "location": "資安科門口第二台",
+    "model": "FUJI XEROX ApeosPort 3560",
+    "daily": {
+      "print": 305,
+      "copy": 21,
+      "fax": 0,
+      "total": 326
+    },
+    "monthly": {
+      "print": 31565,
+      "copy": 3503,
+      "fax": 2,
+      "total": 35068
+    },
+    "yearly": {
+      "print": 31565,
+      "copy": 3503,
+      "fax": 2,
+      "total": 35068
+    },
+    "raw_total": 35068
+  }
+]
