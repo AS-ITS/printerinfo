@@ -4,156 +4,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer Analytics | Glass Pro</title>
+    <title>Printer Dashboard | Advanced Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: radial-gradient(circle at top left, #1e293b, #0f172a);
+            background: radial-gradient(circle at top right, #0f172a, #1e1b4b);
             background-attachment: fixed;
             color: #f8fafc;
         }
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+        .glass {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
         }
 
-        /* 文字加大一級優化 */
-        .text-header {
-            font-size: 3.5rem;
-            font-weight: 800;
+        .bar:hover {
+            fill: #818cf8;
+            cursor: pointer;
+            transition: 0.2s;
         }
 
-        .text-data {
-            font-size: 1.5rem;
-            font-weight: 700;
+        .text-blue {
+            color: #60a5fa;
         }
 
-        .text-label {
-            font-size: 1.125rem;
-            font-weight: 600;
+        .text-green {
+            color: #34d399;
         }
 
-        .row-hover:hover {
-            background: rgba(255, 255, 255, 0.05);
+        .text-amber {
+            color: #fbbf24;
         }
     </style>
 </head>
 
 <body class="min-h-screen pb-20">
 
-    <nav class="glass-panel sticky top-0 z-50 px-10 py-6 mb-12">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span class="text-indigo-400">HISTORY</span>
-            </h1>
-            <div class="flex items-center gap-6">
-                <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">選擇年份:</span>
-                <select id="year-selector" onchange="render()"
-                    class="bg-slate-800 text-white px-6 py-2 rounded-xl border border-white/20 text-lg font-bold outline-none cursor-pointer">
-                </select>
-            </div>
-        </div>
+    <nav class="glass sticky top-0 z-50 px-10 py-6 mb-12 flex justify-between items-center">
+        <h1 class="text-3xl font-black tracking-tighter italic">PRINTER<span class="text-indigo-400">CORE</span></h1>
+        <select id="year-selector" onchange="render()"
+            class="bg-slate-900 text-white px-6 py-2 rounded-xl border border-white/20 text-lg font-bold outline-none"></select>
     </nav>
 
     <main class="max-w-7xl mx-auto px-8">
-        <div class="mb-16">
-            <p class="text-emerald-400 font-black text-xl uppercase tracking-[0.3em] mb-3">Statistics Center</p>
-            <h2 class="text-header text-white leading-none">年度累計報告</h2>
-        </div>
-
-        <div id="printer-container" class="space-y-16">
+        <div id="dashboard-content" class="space-y-20">
         </div>
     </main>
 
+    <div id="detail-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeModal()"></div>
+        <div class="glass w-full max-w-4xl rounded-[3rem] relative p-12 animate-in fade-in zoom-in duration-300">
+            <div class="flex justify-between items-center mb-8">
+                <h3 id="modal-title" class="text-4xl font-black"></h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-4xl">&times;</button>
+            </div>
+            <div class="max-h-[500px] overflow-y-auto pr-4">
+                <table class="w-full text-center">
+                    <thead class="bg-white/5 text-slate-500 uppercase text-sm font-black sticky top-0 backdrop-blur-md">
+                        <tr>
+                            <th class="py-4">日期</th>
+                            <th class="py-4 text-blue">列印</th>
+                            <th class="py-4 text-green">影印</th>
+                            <th class="py-4 text-amber">傳真</th>
+                            <th class="py-4">總計</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-body" class="text-xl font-bold divide-y divide-white/5"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let fullData = [];
+        let printerData = [];
 
         async function init() {
-            try {
-                const res = await fetch('data.json');
-                const raw = await res.json();
+            const res = await fetch('data.json');
+            printerData = await res.json();
 
-                // 確保資料是陣列，修正 forEach undefined 錯誤
-                fullData = Array.isArray(raw) ? raw : [];
-                if (fullData.length === 0) {
-                    console.error("JSON data is empty or not an array");
-                    return;
-                }
-
-                // 抓取所有不重複年份
-                const years = new Set();
-                fullData.forEach(p => p.history.forEach(h => years.add(h.year)));
-                const selector = document.getElementById('year-selector');
-                Array.from(years).sort().reverse().forEach(y => {
-                    const opt = document.createElement('option');
-                    opt.value = y; opt.innerText = y + " 年度";
-                    selector.appendChild(opt);
-                });
-
-                render();
-            } catch (e) {
-                console.error("Initialization failed:", e);
-            }
+            const years = new Set();
+            printerData.forEach(p => p.history.forEach(h => years.add(h.year)));
+            const selector = document.getElementById('year-selector');
+            Array.from(years).sort().reverse().forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y; opt.innerText = y + " 年度";
+                selector.appendChild(opt);
+            });
+            render();
         }
 
         function render() {
-            const selectedYear = document.getElementById('year-selector').value;
-            const container = document.getElementById('printer-container');
+            const year = document.getElementById('year-selector').value;
+            const container = document.getElementById('dashboard-content');
             container.innerHTML = "";
 
-            fullData.forEach(printer => {
-                const yearInfo = printer.history.find(h => h.year === selectedYear);
-                if (!yearInfo) return;
+            printerData.forEach(p => {
+                const yh = p.history.find(h => h.year === year);
+                if (!yh) return;
 
                 const section = document.createElement('div');
-                section.className = "glass-panel rounded-[3rem] p-12 overflow-hidden border-white/10";
-
+                section.className = "glass rounded-[3.5rem] p-12";
                 section.innerHTML = `
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-8">
-                        <div>
-                            <h3 class="text-4xl font-black text-white mb-3">${printer.location}</h3>
-                            <p class="text-2xl text-indigo-300 font-mono opacity-80">${printer.ip} · ${printer.model}</p>
-                        </div>
-                        <div class="bg-white/5 p-6 rounded-3xl border border-white/10 text-right min-w-[240px]">
-                            <p class="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">年度累計總量</p>
-                            <p class="text-6xl font-black text-white">${yearInfo.year_total.total.toLocaleString()}</p>
-                        </div>
+                    <div class="mb-10">
+                        <h2 class="text-4xl font-black mb-2">${p.location}</h2>
+                        <p class="text-xl text-indigo-300 font-mono">${p.ip} · ${p.model}</p>
                     </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-center">
-                            <thead>
-                                <tr class="text-base font-black uppercase tracking-widest text-slate-500 border-b border-white/10">
-                                    <th class="py-6 text-left pl-6">月份</th>
-                                    <th class="py-6 text-blue-400">列印 (Print)</th>
-                                    <th class="py-6 text-emerald-400">影印 (Copy)</th>
-                                    <th class="py-6 text-amber-400">傳真 (Fax)</th>
-                                    <th class="py-6 text-white bg-white/5 rounded-t-2xl">單月合計</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-white/5">
-                                ${yearInfo.months.map(m => `
-                                    <tr class="row-hover transition-colors">
-                                        <td class="py-7 text-left pl-6 text-2xl font-bold text-slate-200">${parseInt(m.month)}月</td>
-                                        <td class="py-7 text-data text-blue-400/90">${m.metrics.print.toLocaleString()}</td>
-                                        <td class="py-7 text-data text-emerald-400/90">${m.metrics.copy.toLocaleString()}</td>
-                                        <td class="py-7 text-data text-amber-400/90">${m.metrics.fax.toLocaleString()}</td>
-                                        <td class="py-7 text-data text-white bg-white/5">${m.metrics.total.toLocaleString()}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                        <div class="lg:col-span-2">
+                            <h4 class="text-sm font-black uppercase tracking-widest text-slate-500 mb-6">每月列印量統計 (點擊長條查看每日明細)</h4>
+                            <div id="chart-${p.ip.replace(/\./g, '-')}" class="w-full h-64"></div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="text-sm font-black uppercase tracking-widest text-slate-500 mb-6">今日列印量 (${new Date().toLocaleDateString()})</h4>
+                            <div class="bg-black/20 rounded-3xl p-8 border border-white/5">
+                                <div class="space-y-6">
+                                    <div class="flex justify-between items-center"><span class="text-xl text-blue font-bold">列印</span><span class="text-3xl font-black">${p.today.print}</span></div>
+                                    <div class="flex justify-between items-center"><span class="text-xl text-green font-bold">影印</span><span class="text-3xl font-black">${p.today.copy}</span></div>
+                                    <div class="flex justify-between items-center"><span class="text-xl text-amber font-bold">傳真</span><span class="text-3xl font-black">${p.today.fax}</span></div>
+                                    <hr class="border-white/10">
+                                    <div class="flex justify-between items-center"><span class="text-xl font-bold">總計增量</span><span class="text-4xl font-black text-white">${p.today.total}</span></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
                 container.appendChild(section);
+                drawChart(p, yh);
             });
         }
 
+        function drawChart(printer, yearData) {
+            const chartId = `#chart-${printer.ip.replace(/\./g, '-')}`;
+            const container = d3.select(chartId);
+            const width = container.node().getBoundingClientRect().width;
+            const height = 250;
+            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+
+            const svg = container.append("svg").attr("width", width).attr("height", height)
+                .append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleBand().range([0, width - margin.left - margin.right]).padding(0.3)
+                .domain(yearData.months.map(m => m.month + "月"));
+
+            const y = d3.scaleLinear().range([height - margin.top - margin.bottom, 0])
+                .domain([0, d3.max(yearData.months, m => m.month_metrics.total) * 1.1 || 10]);
+
+            svg.append("g").attr("transform", `translate(0,${height - margin.top - margin.bottom})`)
+                .call(d3.axisBottom(x)).selectAll("text").style("fill", "#94a3b8").style("font-size", "14px");
+
+            svg.selectAll(".bar").data(yearData.months).enter().append("rect")
+                .attr("class", "bar fill-indigo-500/60")
+                .attr("x", d => x(d.month + "月"))
+                .attr("y", d => y(d.month_metrics.total))
+                .attr("width", x.bandwidth())
+                .attr("height", d => (height - margin.top - margin.bottom) - y(d.month_metrics.total))
+                .attr("rx", 6)
+                .on("click", (e, d) => showDailyDetails(printer.location, d));
+        }
+
+        function showDailyDetails(location, monthData) {
+            document.getElementById('modal-title').innerText = `${location} - ${monthData.month}月每日明細`;
+            const tbody = document.getElementById('modal-body');
+            tbody.innerHTML = monthData.daily_logs.map(log => `
+                <tr>
+                    <td class="py-6 text-slate-400">${log.date}</td>
+                    <td class="py-6 text-blue">${log.metrics.print}</td>
+                    <td class="py-6 text-green">${log.metrics.copy}</td>
+                    <td class="py-6 text-amber">${log.metrics.fax}</td>
+                    <td class="py-6 text-white">${log.metrics.total}</td>
+                </tr>
+            `).join('');
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
         window.onload = init;
     </script>
 </body>

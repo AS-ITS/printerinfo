@@ -18,22 +18,28 @@ type Metrics struct {
 	Total int `json:"total"`
 }
 
-type MonthData struct {
-	Month   string  `json:"month"`
+type DailyLog struct {
+	Date    string  `json:"date"`
 	Metrics Metrics `json:"metrics"`
 }
 
-type YearData struct {
-	Year      string      `json:"year"`
-	YearTotal Metrics     `json:"year_total"`
-	Months    []MonthData `json:"months"`
+type MonthData struct {
+	Month        string     `json:"month"`
+	MonthMetrics Metrics    `json:"month_metrics"`
+	DailyLogs    []DailyLog `json:"daily_logs"`
 }
 
-type PrinterHistory struct {
+type YearData struct {
+	Year   string      `json:"year"`
+	Months []MonthData `json:"months"`
+}
+
+type PrinterStats struct {
 	IP       string     `json:"ip"`
 	Location string     `json:"location"`
 	Model    string     `json:"model"`
 	History  []YearData `json:"history"`
+	Today    Metrics    `json:"today"` // 當日最新增量
 }
 
 func r_int(s string) int {
@@ -43,33 +49,28 @@ func r_int(s string) int {
 }
 
 func main() {
-	// 假設 CSV 都在同一個目錄
-	files, _ := filepath.Glob("private-data/data/*.csv")
+	files, _ := filepath.Glob("data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
-		fmt.Println("Error: No CSV files found")
+		fmt.Println("Error: No CSV files in data/")
 		return
 	}
 
-	// 紀錄每台印表機在前一個檔案的讀數
 	prevCounters := make(map[string]map[string]int)
-	// IP -> Year -> Month -> Metrics
-	rawStats := make(map[string]map[string]map[string]*Metrics)
-	info := make(map[string][2]string) // IP -> [Location, Model]
+	// IP -> Year -> Month -> MonthData
+	storage := make(map[string]map[string]map[string]*MonthData)
+	info := make(map[string][2]string)
+	todayMetrics := make(map[string]Metrics)
 
 	for _, file := range files {
 		f, _ := os.Open(file)
 		records, _ := csv.NewReader(f).ReadAll()
 		f.Close()
 
-		// 檔名格式: yyyy-mm-dd.csv
-		baseName := filepath.Base(file)
-		if len(baseName) < 10 {
-			continue
-		}
-		year := baseName[:4]
-		month := baseName[5:7]
+		base := filepath.Base(file) // yyyy-mm-dd.csv
+		dateStr := base[:10]
+		year, month := dateStr[:4], dateStr[5:7]
 
 		for i, r := range records {
 			if i == 0 || len(r) < 11 {
@@ -79,70 +80,60 @@ func main() {
 			info[ip] = [2]string{r[1], r[2]}
 
 			curr := map[string]int{
-				"total": r_int(r[3]),
-				"print": r_int(r[4]),
-				"copy":  r_int(r[5]),
-				"fax":   r_int(r[9]),
+				"total": r_int(r[3]), "print": r_int(r[4]), "copy": r_int(r[5]), "fax": r_int(r[9]),
 			}
 
 			if prev, ok := prevCounters[ip]; ok {
-				// 計算今日增量
-				dTotal := curr["total"] - prev["total"]
-				dPrint := curr["print"] - prev["print"]
-				dCopy := curr["copy"] - prev["copy"]
-				dFax := curr["fax"] - prev["fax"]
+				dm := Metrics{
+					Print: curr["print"] - prev["print"],
+					Copy:  curr["copy"] - prev["copy"],
+					Fax:   curr["fax"] - prev["fax"],
+					Total: curr["total"] - prev["total"],
+				}
+				if dm.Total < 0 {
+					dm = Metrics{}
+				} // 排除異常
 
-				// 排除計數器歸零或異常負值
-				if dTotal < 0 {
-					dTotal = 0
+				// 儲存至月份與每日紀錄
+				if storage[ip] == nil {
+					storage[ip] = make(map[string]map[string]*MonthData)
+				}
+				if storage[ip][year] == nil {
+					storage[ip][year] = make(map[string]*Metrics)
+				} // 修正結構
+
+				// 確保月份結構存在
+				if _, ok := storage[ip][year][month]; !ok {
+					storage[ip][year][month] = &MonthData{Month: month}
 				}
 
-				// 累加到該月份
-				if rawStats[ip] == nil {
-					rawStats[ip] = make(map[string]map[string]*Metrics)
-				}
-				if rawStats[ip][year] == nil {
-					rawStats[ip][year] = make(map[string]*Metrics)
-				}
-				if rawStats[ip][year][month] == nil {
-					rawStats[ip][year][month] = &Metrics{}
-				}
+				m := storage[ip][year][month]
+				m.DailyLogs = append(m.DailyLogs, DailyLog{Date: dateStr, Metrics: dm})
+				m.MonthMetrics.Print += dm.Print
+				m.MonthMetrics.Copy += dm.Copy
+				m.MonthMetrics.Fax += dm.Fax
+				m.MonthMetrics.Total += dm.Total
 
-				rawStats[ip][year][month].Total += dTotal
-				rawStats[ip][year][month].Print += dPrint
-				rawStats[ip][year][month].Copy += dCopy
-				rawStats[ip][year][month].Fax += dFax
+				// 紀錄為最後一天的「今日量」
+				todayMetrics[ip] = dm
 			}
 			prevCounters[ip] = curr
 		}
 	}
 
-	// 轉換成前端用的結構
-	var result []PrinterHistory
-	for ip, years := range rawStats {
-		p := PrinterHistory{IP: ip, Location: info[ip][0], Model: info[ip][1]}
-
-		var yearKeys []string
-		for y := range years {
-			yearKeys = append(yearKeys, y)
-		}
-		sort.Sort(sort.Reverse(sort.StringSlice(yearKeys)))
-
-		for _, y := range yearKeys {
+	// 轉化為前端格式
+	var result []PrinterStats
+	for ip, years := range storage {
+		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip]}
+		for y, months := range years {
 			yData := YearData{Year: y}
-			var monthKeys []string
-			for m := range years[y] {
-				monthKeys = append(monthKeys, m)
+			var mKeys []string
+			for m := range months {
+				mKeys = append(mKeys, m)
 			}
-			sort.Strings(monthKeys)
-
-			for _, m := range monthKeys {
-				mMet := *years[y][m]
-				yData.Months = append(yData.Months, MonthData{Month: m, Metrics: mMet})
-				yData.YearTotal.Total += mMet.Total
-				yData.YearTotal.Print += mMet.Print
-				yData.YearTotal.Copy += mMet.Copy
-				yData.YearTotal.Fax += mMet.Fax
+			sort.Strings(mKeys)
+			for _, mk := range mKeys {
+				yData.Months = append(yData.Months, *months[mk])
 			}
 			p.History = append(p.History, yData)
 		}
@@ -151,5 +142,5 @@ func main() {
 
 	out, _ := json.MarshalIndent(result, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("Done: data.json generated.")
+	fmt.Println("data.json generated with daily details.")
 }
