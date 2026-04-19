@@ -11,116 +11,90 @@ import (
 	"strings"
 )
 
+type Metrics struct {
+	Print int `json:"print"`
+	Copy  int `json:"copy"`
+	Fax   int `json:"fax"`
+	Total int `json:"total"`
+}
+
 type PrinterStats struct {
-	IP       string `json:"ip"`
-	Location string `json:"location"`
-	Model    string `json:"model"`
-	Total    int    `json:"total"`
-	Date     string `json:"date"`
+	IP       string  `json:"ip"`
+	Location string  `json:"location"`
+	Model    string  `json:"model"`
+	Daily    Metrics `json:"daily"`
+	Monthly  Metrics `json:"monthly"`
+	Yearly   Metrics `json:"yearly"`
+	RawTotal int     `json:"raw_total"` // 用於內部計算
 }
 
-type OutputData struct {
-	Daily   []PrinterStats    `json:"daily"`
-	Monthly []PrinterStats    `json:"monthly"`
-	Yearly  []PrinterStats    `json:"yearly"`
-	Meta    map[string]string `json:"meta"`
-}
-
-func readCSV(path string) (map[string]PrinterStats, error) {
+func readCSV(path string) (map[string]map[string]int, error) {
+	data := make(map[string]map[string]int)
 	if path == "" {
-		return make(map[string]PrinterStats), nil
+		return data, nil
 	}
+
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return data, err
 	}
 	defer f.Close()
 
 	records, _ := csv.NewReader(f).ReadAll()
-	data := make(map[string]PrinterStats)
 	for i, r := range records {
-		// 跳過標題且確保欄位數正確 (根據範例 11 欄)
 		if i == 0 || len(r) < 11 {
 			continue
 		}
-		total, _ := strconv.Atoi(r[3])
-		data[r[0]] = PrinterStats{
-			IP:       r[0],
-			Location: r[1],
-			Model:    r[2],
-			Total:    total,
-			Date:     r[10],
+		ip := r[0]
+		data[ip] = map[string]int{
+			"total": r_int(r[3]),
+			"print": r_int(r[4]),
+			"copy":  r_int(r[5]),
+			"fax":   r_int(r[9]),
 		}
 	}
 	return data, nil
 }
 
-func calculateDiff(latest, base map[string]PrinterStats) []PrinterStats {
-	var result []PrinterStats
-	for ip, now := range latest {
-		usage := 0
-		if prev, ok := base[ip]; ok {
-			usage = now.Total - prev.Total
-		}
-		if usage < 0 {
-			usage = 0
-		}
-		result = append(result, PrinterStats{
-			IP:       ip,
-			Location: now.Location,
-			Model:    now.Model,
-			Total:    usage,
-			Date:     now.Date,
-		})
+func r_int(s string) int {
+	v, _ := strconv.Atoi(s)
+	return v
+}
+
+func calculateDelta(current, base map[string]int) Metrics {
+	return Metrics{
+		Print: current["print"] - base["print"],
+		Copy:  current["copy"] - base["copy"],
+		Fax:   current["fax"] - base["fax"],
+		Total: current["total"] - base["total"],
 	}
-	// 依照使用量從大到小排序
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Total > result[j].Total
-	})
-	return result
 }
 
 func main() {
-	// 假設 Private Repo 檢出在 private-data 目錄下
 	files, _ := filepath.Glob("private-data/data/*.csv")
 	sort.Strings(files)
-
 	if len(files) == 0 {
-		fmt.Println("錯誤：找不到資料檔案")
 		return
 	}
 
 	latestFile := files[len(files)-1]
-	earliestFile := files[0]
+	currentMonth := filepath.Base(latestFile)[:7]
+	currentYear := filepath.Base(latestFile)[:4]
 
-	// 取得當前檔案的時間維度
-	currentName := filepath.Base(latestFile)
-	currentMonth := currentName[:7] // yyyy-mm
-	currentYear := currentName[:4]  // yyyy
-
-	// 1. 尋找日基準 (上一個可用的檔案，解決週末不蒐集的問題)
-	var dBaseFile string
+	// 找出基準檔案
+	var dBaseFile, mBaseFile, yBaseFile string
 	if len(files) >= 2 {
 		dBaseFile = files[len(files)-2]
 	} else {
 		dBaseFile = latestFile
 	}
 
-	// 2. 尋找月基準 (本月最早的一份)
-	mBaseFile := earliestFile
 	for _, f := range files {
-		if strings.HasPrefix(filepath.Base(f), currentMonth) {
+		if mBaseFile == "" && strings.HasPrefix(filepath.Base(f), currentMonth) {
 			mBaseFile = f
-			break
 		}
-	}
-
-	// 3. 尋找年基準 (本年最早的一份)
-	yBaseFile := earliestFile
-	for _, f := range files {
-		if strings.HasPrefix(filepath.Base(f), currentYear) {
+		if yBaseFile == "" && strings.HasPrefix(filepath.Base(f), currentYear) {
 			yBaseFile = f
-			break
 		}
 	}
 
@@ -129,19 +103,30 @@ func main() {
 	mBase, _ := readCSV(mBaseFile)
 	yBase, _ := readCSV(yBaseFile)
 
-	output := OutputData{
-		Daily:   calculateDiff(latestData, dBase),
-		Monthly: calculateDiff(latestData, mBase),
-		Yearly:  calculateDiff(latestData, yBase),
-		Meta: map[string]string{
-			"latest":  filepath.Base(latestFile),
-			"daily":   filepath.Base(dBaseFile),
-			"monthly": filepath.Base(mBaseFile),
-			"yearly":  filepath.Base(yBaseFile),
-		},
+	// 取得基本資訊（從最新檔案讀取地點與型號）
+	f, _ := os.Open(latestFile)
+	records, _ := csv.NewReader(f).ReadAll()
+	f.Close()
+
+	var results []PrinterStats
+	for i, r := range records {
+		if i == 0 {
+			continue
+		}
+		ip := r[0]
+		stats := PrinterStats{
+			IP:       ip,
+			Location: r[1],
+			Model:    r[2],
+			Daily:    calculateDelta(latestData[ip], dBase[ip]),
+			Monthly:  calculateDelta(latestData[ip], mBase[ip]),
+			Yearly:   calculateDelta(latestData[ip], yBase[ip]),
+			RawTotal: latestData[ip]["total"],
+		}
+		results = append(results, stats)
 	}
 
-	jsonBytes, _ := json.MarshalIndent(output, "", "  ")
-	_ = os.WriteFile("data.json", jsonBytes, 0644)
-	fmt.Println("資料預處理完成：data.json 已更新")
+	output, _ := json.MarshalIndent(results, "", "  ")
+	os.WriteFile("data.json", output, 0644)
+	fmt.Println("data.json generated successfully.")
 }
