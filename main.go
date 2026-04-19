@@ -49,7 +49,7 @@ func r_int(s string) int {
 }
 
 func main() {
-	files, _ := filepath.Glob("data/*.csv")
+	files, _ := filepath.Glob("private-data/data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
