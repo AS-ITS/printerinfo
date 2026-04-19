@@ -19,14 +19,14 @@ type Metrics struct {
 }
 
 type MonthData struct {
-	Month   string  `json:"month"` // "01", "02" ...
+	Month   string  `json:"month"`
 	Metrics Metrics `json:"metrics"`
 }
 
 type YearData struct {
-	Year    string      `json:"year"`
-	Metrics Metrics     `json:"year_total"`
-	Months  []MonthData `json:"months"`
+	Year      string      `json:"year"`
+	YearTotal Metrics     `json:"year_total"`
+	Months    []MonthData `json:"months"`
 }
 
 type PrinterHistory struct {
@@ -43,20 +43,19 @@ func r_int(s string) int {
 }
 
 func main() {
-	// 1. 取得所有檔案並排序
-	files, _ := filepath.Glob("*.csv") // 根據環境調整路徑，例如 "data/*.csv"
+	// 假設 CSV 都在同一個目錄
+	files, _ := filepath.Glob("*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
-		fmt.Println("No CSV files found.")
+		fmt.Println("Error: No CSV files found")
 		return
 	}
 
-	// 用於儲存每台印表機「前一個檔案」的數值，以便計算增量
+	// 紀錄每台印表機在前一個檔案的讀數
 	prevCounters := make(map[string]map[string]int)
-	// 最終統計結果：IP -> Year -> Month -> Metrics
-	stats := make(map[string]map[string]map[string]*Metrics)
-	// 基本資訊儲存
+	// IP -> Year -> Month -> Metrics
+	rawStats := make(map[string]map[string]map[string]*Metrics)
 	info := make(map[string][2]string) // IP -> [Location, Model]
 
 	for _, file := range files {
@@ -64,9 +63,13 @@ func main() {
 		records, _ := csv.NewReader(f).ReadAll()
 		f.Close()
 
-		dateParts := strings.Split(filepath.Base(file), "-") // yyyy-mm-dd
-		year := dateParts[0]
-		month := dateParts[1]
+		// 檔名格式: yyyy-mm-dd.csv
+		baseName := filepath.Base(file)
+		if len(baseName) < 10 {
+			continue
+		}
+		year := baseName[:4]
+		month := baseName[5:7]
 
 		for i, r := range records {
 			if i == 0 || len(r) < 11 {
@@ -75,60 +78,49 @@ func main() {
 			ip := r[0]
 			info[ip] = [2]string{r[1], r[2]}
 
-			currTotal := r_int(r[3])
-			currPrint := r_int(r[4])
-			currCopy := r_int(r[5])
-			currFax := r_int(r[9])
+			curr := map[string]int{
+				"total": r_int(r[3]),
+				"print": r_int(r[4]),
+				"copy":  r_int(r[5]),
+				"fax":   r_int(r[9]),
+			}
 
-			// 如果有前一次紀錄，計算增量
 			if prev, ok := prevCounters[ip]; ok {
-				dTotal := currTotal - prev["total"]
-				dPrint := currPrint - prev["print"]
-				dCopy := currCopy - prev["copy"]
-				dFax := currFax - prev["fax"]
+				// 計算今日增量
+				dTotal := curr["total"] - prev["total"]
+				dPrint := curr["print"] - prev["print"]
+				dCopy := curr["copy"] - prev["copy"]
+				dFax := curr["fax"] - prev["fax"]
 
-				// 確保增量不為負數 (防止換碳粉匣或維修後計數器歸零的情況)
+				// 排除計數器歸零或異常負值
 				if dTotal < 0 {
 					dTotal = 0
 				}
-				if dPrint < 0 {
-					dPrint = 0
+
+				// 累加到該月份
+				if rawStats[ip] == nil {
+					rawStats[ip] = make(map[string]map[string]*Metrics)
 				}
-				if dCopy < 0 {
-					dCopy = 0
+				if rawStats[ip][year] == nil {
+					rawStats[ip][year] = make(map[string]*Metrics)
 				}
-				if dFax < 0 {
-					dFax = 0
+				if rawStats[ip][year][month] == nil {
+					rawStats[ip][year][month] = &Metrics{}
 				}
 
-				// 初始化結構並累加
-				if stats[ip] == nil {
-					stats[ip] = make(map[string]map[string]*Metrics)
-				}
-				if stats[ip][year] == nil {
-					stats[ip][year] = make(map[string]*Metrics)
-				}
-				if stats[ip][year][month] == nil {
-					stats[ip][year][month] = &Metrics{}
-				}
-
-				stats[ip][year][month].Total += dTotal
-				stats[ip][year][month].Print += dPrint
-				stats[ip][year][month].Copy += dCopy
-				stats[ip][year][month].Fax += dFax
+				rawStats[ip][year][month].Total += dTotal
+				rawStats[ip][year][month].Print += dPrint
+				rawStats[ip][year][month].Copy += dCopy
+				rawStats[ip][year][month].Fax += dFax
 			}
-
-			// 更新前一次紀錄
-			prevCounters[ip] = map[string]int{
-				"total": currTotal, "print": currPrint, "copy": currCopy, "fax": currFax,
-			}
+			prevCounters[ip] = curr
 		}
 	}
 
-	// 2. 轉換為前端易用的 JSON 結構
-	var finalOutput []PrinterHistory
-	for ip, years := range stats {
-		pHistory := PrinterHistory{IP: ip, Location: info[ip][0], Model: info[ip][1]}
+	// 轉換成前端用的結構
+	var result []PrinterHistory
+	for ip, years := range rawStats {
+		p := PrinterHistory{IP: ip, Location: info[ip][0], Model: info[ip][1]}
 
 		var yearKeys []string
 		for y := range years {
@@ -145,20 +137,19 @@ func main() {
 			sort.Strings(monthKeys)
 
 			for _, m := range monthKeys {
-				mMetrics := *years[y][m]
-				yData.Months = append(yData.Months, MonthData{Month: m, Metrics: mMetrics})
-				// 累加年度總計
-				yData.Metrics.Total += mMetrics.Total
-				yData.Metrics.Print += mMetrics.Print
-				yData.Metrics.Copy += mMetrics.Copy
-				yData.Metrics.Fax += mMetrics.Fax
+				mMet := *years[y][m]
+				yData.Months = append(yData.Months, MonthData{Month: m, Metrics: mMet})
+				yData.YearTotal.Total += mMet.Total
+				yData.YearTotal.Print += mMet.Print
+				yData.YearTotal.Copy += mMet.Copy
+				yData.YearTotal.Fax += mMet.Fax
 			}
-			pHistory.History = append(pHistory.History, yData)
+			p.History = append(p.History, yData)
 		}
-		finalOutput = append(finalOutput, pHistory)
+		result = append(result, p)
 	}
 
-	out, _ := json.MarshalIndent(finalOutput, "", "  ")
+	out, _ := json.MarshalIndent(result, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("History data.json generated successfully.")
+	fmt.Println("Done: data.json generated.")
 }
