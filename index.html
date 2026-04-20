@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer Analytics Center</title>
+    <title>Printer Operations Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -25,14 +25,14 @@
 
         .bar-month {
             fill: #6366f1;
-            rx: 6px;
+            rx: 8px;
             cursor: pointer;
             transition: 0.3s;
         }
 
         .bar-year {
             fill: #10b981;
-            rx: 6px;
+            rx: 8px;
             cursor: pointer;
             transition: 0.3s;
         }
@@ -69,35 +69,35 @@
     <main class="max-w-[1500px] mx-auto px-8 space-y-12">
         <div class="mb-10">
             <h2 class="text-6xl font-black tracking-tight text-white">營運監控中心</h2>
-            <p class="text-2xl text-slate-400 mt-2">完整歷史數據追蹤與增量分析</p>
+            <p class="text-2xl text-slate-400 mt-2">歷史增量完整追蹤回報</p>
         </div>
 
-        <section class="glass-panel rounded-[3rem] p-10">
+        <section class="glass-panel rounded-[3.5rem] p-12">
             <h3 class="text-3xl font-extrabold text-white mb-8">本月各印表機列印量 (點擊看每日明細)</h3>
             <div id="month-chart" class="w-full h-96"></div>
         </section>
 
-        <section class="glass-panel rounded-[3rem] p-10">
-            <h3 class="text-3xl font-extrabold text-white mb-8">全年度各印表機總量 (點擊看每月明細)</h3>
+        <section class="glass-panel rounded-[3.5rem] p-12">
+            <h3 class="text-3xl font-extrabold text-white mb-8">年度各印表機總量 (點擊看每月明細)</h3>
             <div id="year-chart" class="w-full h-96"></div>
         </section>
 
-        <section class="glass-panel rounded-[3rem] overflow-hidden">
-            <div class="px-10 py-6 bg-white/5 border-b border-white/5 flex justify-between items-center">
-                <h3 class="text-3xl font-extrabold">今日數據明細</h3>
+        <section class="glass-panel rounded-[3.5rem] overflow-hidden">
+            <div class="px-12 py-8 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                <h3 class="text-3xl font-extrabold text-white">今日列印量明細</h3>
                 <span id="today-date-display"
-                    class="text-xl font-mono text-indigo-400 font-bold bg-white/5 px-4 py-1 rounded-xl"></span>
+                    class="text-2xl font-mono text-indigo-400 font-bold bg-white/5 px-6 py-2 rounded-2xl border border-white/10 tracking-widest"></span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
                     <thead>
-                        <tr class="bg-indigo-500/10 text-indigo-300 text-sm font-black uppercase tracking-widest">
-                            <th class="px-10 py-6">位置 / IP</th>
-                            <th class="px-8 py-6">設備型號</th>
-                            <th class="px-6 py-6 text-center text-blue-accent">列印</th>
-                            <th class="px-6 py-6 text-center text-green-accent">影印</th>
-                            <th class="px-6 py-6 text-center text-amber-accent">傳真</th>
-                            <th class="px-10 py-6 text-right text-white">今日總計</th>
+                        <tr class="bg-indigo-500/10 text-indigo-200 text-sm font-black uppercase tracking-[0.2em]">
+                            <th class="px-12 py-8">位置 / IP</th>
+                            <th class="px-8 py-8">型號</th>
+                            <th class="px-8 py-8 text-center text-blue-accent">列印</th>
+                            <th class="px-8 py-8 text-center text-green-accent">影印</th>
+                            <th class="px-8 py-8 text-center text-amber-accent">傳真</th>
+                            <th class="px-12 py-8 text-right text-white">今日總計</th>
                         </tr>
                     </thead>
                     <tbody id="today-table-body" class="divide-y divide-white/5 text-lg font-semibold"></tbody>
@@ -108,12 +108,12 @@
 
     <div id="modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-8">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeModal()"></div>
-        <div class="glass-panel w-full max-w-5xl rounded-[3rem] relative p-12 animate-in fade-in zoom-in duration-200">
-            <div class="flex justify-between items-center mb-8 border-b border-white/5 pb-4">
+        <div class="glass-panel w-full max-w-6xl rounded-[3rem] relative p-12 animate-in fade-in zoom-in duration-200">
+            <div class="flex justify-between items-center mb-8">
                 <h3 id="modal-title" class="text-4xl font-black text-white"></h3>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-white text-5xl">&times;</button>
             </div>
-            <div class="max-h-[60vh] overflow-y-auto">
+            <div class="max-h-[60vh] overflow-y-auto rounded-3xl border border-white/5">
                 <table class="w-full text-center">
                     <thead class="bg-white/5 text-slate-500 uppercase text-xs font-black sticky top-0 backdrop-blur-md">
                         <tr id="modal-table-head"></tr>
@@ -128,18 +128,21 @@
         let rawData = null;
 
         async function init() {
-            const res = await fetch('data.json');
-            rawData = await res.json();
-            document.getElementById('today-date-display').innerText = rawData.generated_at;
-            const years = new Set();
-            rawData.printers.forEach(p => p.history.forEach(h => years.add(h.year)));
-            const selector = document.getElementById('year-selector');
-            Array.from(years).sort().reverse().forEach(y => {
-                const opt = document.createElement('option');
-                opt.value = y; opt.innerText = y + " 年度報告";
-                selector.appendChild(opt);
-            });
-            render();
+            try {
+                const res = await fetch('data.json');
+                rawData = await res.json();
+                document.getElementById('today-date-display').innerText = rawData.generated_at;
+
+                const years = new Set();
+                rawData.printers.forEach(p => p.history.forEach(h => years.add(h.year)));
+                const selector = document.getElementById('year-selector');
+                Array.from(years).sort().reverse().forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y; opt.innerText = y + " 年度報告";
+                    selector.appendChild(opt);
+                });
+                render();
+            } catch (e) { console.error("Load failed", e); }
         }
 
         function render() {
@@ -148,8 +151,8 @@
 
             const monthData = printers.map(p => {
                 const yh = p.history.find(h => h.year === year);
-                const lastM = yh ? yh.months[yh.months.length - 1] : null;
-                return { printer: p, label: p.location, value: lastM ? lastM.month_metrics.total : 0, context: lastM };
+                const lastMonth = yh ? yh.months[yh.months.length - 1] : null;
+                return { printer: p, label: p.location, value: lastMonth ? lastMonth.month_metrics.total : 0, context: lastMonth };
             }).sort((a, b) => b.value - a.value);
             drawChart("#month-chart", monthData, "bar-month", "daily");
 
@@ -161,17 +164,17 @@
 
             document.getElementById('today-table-body').innerHTML = printers.map(p => `
                 <tr class="hover:bg-white/5 transition-all">
-                    <td class="px-10 py-6"><div class="font-black text-white">${p.location}</div><div class="text-sm font-mono text-indigo-400 opacity-50">${p.ip}</div></td>
-                    <td class="px-8 py-6 text-slate-400">${p.model}</td>
-                    <td class="px-6 py-6 text-center text-accent-blue">${p.today.print}</td>
-                    <td class="px-6 py-6 text-center text-accent-green">${p.today.copy}</td>
-                    <td class="px-6 py-6 text-center text-accent-amber">${p.today.fax}</td>
-                    <td class="px-10 py-6 text-right text-2xl font-black text-white">${p.today.total}</td>
+                    <td class="px-12 py-8"><div class="font-black text-white">${p.location}</div><div class="text-sm font-mono text-indigo-400 opacity-50">${p.ip}</div></td>
+                    <td class="px-8 py-8 text-slate-400">${p.model}</td>
+                    <td class="px-8 py-8 text-center text-accent-blue">${p.today.print}</td>
+                    <td class="px-8 py-8 text-center text-accent-green">${p.today.copy}</td>
+                    <td class="px-8 py-8 text-center text-accent-amber">${p.today.fax}</td>
+                    <td class="px-12 py-8 text-right text-3xl font-black text-white">${p.today.total}</td>
                 </tr>
             `).join('');
         }
 
-        function drawChart(selector, data, barClass, clickType) {
+        function drawChart(selector, data, barClass, type) {
             const container = d3.select(selector);
             const width = container.node().getBoundingClientRect().width;
             const height = 384;
@@ -190,23 +193,25 @@
                 .attr("y", d => y(d.value))
                 .attr("width", x.bandwidth())
                 .attr("height", d => (height - 100) - y(d.value))
-                .on("click", (e, d) => showDetails(d.printer, d.context, clickType));
+                .on("click", (e, d) => showDetails(d.printer, d.context, type));
         }
 
         function showDetails(printer, context, type) {
             if (!context) return;
             document.getElementById('modal-title').innerText = `${printer.location} - 明細`;
             document.getElementById('modal-table-head').innerHTML = `
-                <th class="py-4 pl-8 text-left">${type === 'daily' ? '日期' : '月份'}</th>
-                <th class="py-4 text-accent-blue">列印</th><th class="py-4 text-accent-green">影印</th>
-                <th class="py-4 text-accent-amber">傳真</th><th class="py-4 text-white pr-8">合計</th>
+                <th class="py-4 pl-10 text-left font-black uppercase text-slate-500">${type === 'daily' ? '日期' : '月份'}</th>
+                <th class="py-4 text-blue-accent">列印</th><th class="py-4 text-green-accent">影印</th>
+                <th class="py-4 text-amber-accent">傳真</th><th class="py-4 text-white pr-10">合計</th>
             `;
             let rows = (type === 'daily' ? context.daily_logs : context.months).map(item => {
                 const met = type === 'daily' ? item.metrics : item.month_metrics;
-                return `<tr>
-                    <td class="py-6 pl-8 text-left text-slate-400">${type === 'daily' ? item.date : item.month + '月'}</td>
-                    <td class="py-6 text-accent-blue">${met.print}</td><td class="py-6 text-accent-green">${met.copy}</td>
-                    <td class="py-6 text-accent-amber">${met.fax}</td><td class="py-6 text-white pr-8 font-black">${met.total}</td>
+                return `<tr class="hover:bg-white/5 transition-colors">
+                    <td class="py-6 pl-10 text-left text-slate-400 font-mono">${type === 'daily' ? item.date : item.month + '月'}</td>
+                    <td class="py-6 text-blue-accent">${met.print.toLocaleString()}</td>
+                    <td class="py-6 text-green-accent">${met.copy.toLocaleString()}</td>
+                    <td class="py-6 text-amber-accent">${met.fax.toLocaleString()}</td>
+                    <td class="py-6 text-white pr-10 font-black text-2xl">${met.total.toLocaleString()}</td>
                 </tr>`;
             });
             document.getElementById('modal-table-body').innerHTML = rows.join('');

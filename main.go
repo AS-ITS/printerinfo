@@ -49,13 +49,14 @@ type DashboardData struct {
 }
 
 func r_int(s string) int {
-	s = strings.ReplaceAll(s, ",", "")
+	// 移除千分號與空白
+	s = strings.TrimSpace(strings.ReplaceAll(s, ",", ""))
 	v, _ := strconv.Atoi(s)
 	return v
 }
 
 func main() {
-	// 1. 取得所有 CSV 檔案並排序
+	// 1. 取得所有檔案並嚴格排序
 	files, _ := filepath.Glob("private-data/data/*.csv")
 	sort.Strings(files)
 
@@ -64,11 +65,11 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Found %d files. Processing...\n", len(files))
+	fmt.Printf("Processing %d files: %v\n", len(files), files)
 
 	// 用於追蹤前一個狀態
 	prevCounters := make(map[string]map[string]int)
-	// 核心儲存結構: IP -> Year -> Month -> *MonthData
+	// IP -> Year -> Month -> *MonthData
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
@@ -77,7 +78,6 @@ func main() {
 	for _, file := range files {
 		f, err := os.Open(file)
 		if err != nil {
-			fmt.Printf("Skip file %s: %v\n", file, err)
 			continue
 		}
 		records, _ := csv.NewReader(f).ReadAll()
@@ -95,8 +95,14 @@ func main() {
 			if i == 0 || len(r) < 11 {
 				continue
 			}
-			ip := r[0]
-			info[ip] = [2]string{r[1], r[2]}
+
+			// 移除 IP 可能存在的隱形空白
+			ip := strings.TrimSpace(r[0])
+			if ip == "" {
+				continue
+			}
+
+			info[ip] = [2]string{strings.TrimSpace(r[1]), strings.TrimSpace(r[2])}
 
 			curr := map[string]int{
 				"total": r_int(r[3]),
@@ -105,7 +111,7 @@ func main() {
 				"fax":   r_int(r[9]),
 			}
 
-			// 如果不是第一份檔案，就計算與上一個檔案的增量
+			// 如果有前一個檔案的數據，計算增量
 			if prev, ok := prevCounters[ip]; ok {
 				dm := Metrics{
 					Print: curr["print"] - prev["print"],
@@ -113,7 +119,8 @@ func main() {
 					Fax:   curr["fax"] - prev["fax"],
 					Total: curr["total"] - prev["total"],
 				}
-				// 排除負值（可能是計數器重置）
+
+				// 正常情況下計數器只會增加。若為負值則代表計數器重置或異常，設為 0
 				if dm.Total < 0 {
 					dm = Metrics{}
 				}
@@ -129,28 +136,38 @@ func main() {
 					storage[ip][year][month] = &MonthData{Month: month, DailyLogs: []DailyLog{}}
 				}
 
-				// 記錄每日紀錄
 				m := storage[ip][year][month]
-				m.DailyLogs = append(m.DailyLogs, DailyLog{Date: dateStr, Metrics: dm})
+				// 檢查是否已存在同日期的 Log (避免重複處理)
+				exists := false
+				for _, log := range m.DailyLogs {
+					if log.Date == dateStr {
+						exists = true
+						break
+					}
+				}
 
-				// 累加月份指標
-				m.MonthMetrics.Print += dm.Print
-				m.MonthMetrics.Copy += dm.Copy
-				m.MonthMetrics.Fax += dm.Fax
-				m.MonthMetrics.Total += dm.Total
-
-				// 由於是按日期排序，最後更新的會是「今日增量」
-				todayMetrics[ip] = dm
+				if !exists {
+					m.DailyLogs = append(m.DailyLogs, DailyLog{Date: dateStr, Metrics: dm})
+					m.MonthMetrics.Print += dm.Print
+					m.MonthMetrics.Copy += dm.Copy
+					m.MonthMetrics.Fax += dm.Fax
+					m.MonthMetrics.Total += dm.Total
+					// 更新該設備最後一次的增量 (用於主頁表格)
+					todayMetrics[ip] = dm
+				}
 			}
-			// 更新前一個計數器基準
+			// 更新基準值
 			prevCounters[ip] = curr
 		}
 	}
 
-	// 2. 轉換為輸出結構
+	// 2. 組裝最終 JSON
 	var printerList []PrinterStats
 	for ip, years := range storage {
-		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip]}
+		p := PrinterStats{
+			IP: ip, Location: info[ip][0], Model: info[ip][1],
+			Today: todayMetrics[ip], History: []YearData{},
+		}
 
 		yKeys := make([]string, 0, len(years))
 		for y := range years {
@@ -159,7 +176,7 @@ func main() {
 		sort.Sort(sort.Reverse(sort.StringSlice(yKeys)))
 
 		for _, y := range yKeys {
-			yData := YearData{Year: y}
+			yData := YearData{Year: y, Months: []MonthData{}}
 			mKeys := make([]string, 0, len(years[y]))
 			for m := range years[y] {
 				mKeys = append(mKeys, m)
@@ -167,13 +184,13 @@ func main() {
 			sort.Strings(mKeys)
 
 			for _, mk := range mKeys {
-				mDat := *years[y][mk]
-				// 排序每日紀錄
+				mDat := years[y][mk]
+				// 輸出前再次確保日期排序正確
 				sort.Slice(mDat.DailyLogs, func(i, j int) bool {
 					return mDat.DailyLogs[i].Date < mDat.DailyLogs[j].Date
 				})
+				yData.Months = append(yData.Months, *mDat)
 
-				yData.Months = append(yData.Months, mDat)
 				yData.YearTotal.Print += mDat.MonthMetrics.Print
 				yData.YearTotal.Copy += mDat.MonthMetrics.Copy
 				yData.YearTotal.Fax += mDat.MonthMetrics.Fax
@@ -187,5 +204,5 @@ func main() {
 	finalData := DashboardData{GeneratedAt: latestDate, Printers: printerList}
 	out, _ := json.MarshalIndent(finalData, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("Processed all files and generated data.json successfully.")
+	fmt.Println("Success: data.json generated with all historical deltas.")
 }
