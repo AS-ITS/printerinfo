@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Printer Operations Command Center</title>
+    <title>Printer Operations Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -12,28 +12,27 @@
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: radial-gradient(circle at top right, #0f172a, #1e1b4b);
+            background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);
             background-attachment: fixed;
-            color: #f8fafc;
+            color: #f1f5f9;
         }
 
         .glass-panel {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(25px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
         }
 
         .bar-month {
-            fill: #818cf8;
-            rx: 8px;
+            fill: #6366f1;
+            rx: 6px;
             cursor: pointer;
             transition: 0.3s;
         }
 
         .bar-year {
-            fill: #34d399;
-            rx: 8px;
+            fill: #10b981;
+            rx: 6px;
             cursor: pointer;
             transition: 0.3s;
         }
@@ -43,15 +42,15 @@
             filter: brightness(1.2);
         }
 
-        .text-blue-accent {
+        .text-accent-blue {
             color: #60a5fa;
         }
 
-        .text-green-accent {
+        .text-accent-green {
             color: #34d399;
         }
 
-        .text-amber-accent {
+        .text-accent-amber {
             color: #fbbf24;
         }
     </style>
@@ -61,16 +60,13 @@
 
     <nav
         class="glass-panel sticky top-0 z-50 px-10 py-6 mb-12 flex justify-between items-center border-b border-white/5">
-        <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span
+        <h1 class="text-3xl font-black italic tracking-tighter text-white">PRINTER<span
                 class="text-indigo-400 font-light ml-1">CONTROL</span></h1>
-        <div class="flex items-center gap-6">
-            <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">統計年度</span>
-            <select id="year-selector" onchange="render()"
-                class="bg-slate-900 text-white px-6 py-2 rounded-xl border border-white/20 text-lg font-bold outline-none cursor-pointer"></select>
-        </div>
+        <select id="year-selector" onchange="render()"
+            class="bg-slate-900 text-white px-6 py-2 rounded-xl border border-white/20 text-lg font-bold outline-none cursor-pointer"></select>
     </nav>
 
-    <main class="max-w-[1400px] mx-auto px-8 space-y-12">
+    <main class="max-w-[1500px] mx-auto px-8 space-y-12">
 
         <div class="mb-10">
             <h2 class="text-6xl font-black tracking-tight text-white">營運監控中心</h2>
@@ -79,24 +75,25 @@
 
         <section class="glass-panel rounded-[3.5rem] p-12">
             <div class="flex items-center gap-4 mb-8">
-                <span class="w-3 h-8 bg-indigo-500 rounded-full shadow-[0_0_15px_rgba(99,102,241,0.5)]"></span>
-                <h3 class="text-3xl font-extrabold">本月各印表機列印量對照</h3>
+                <span class="w-3 h-8 bg-indigo-500 rounded-full"></span>
+                <h3 class="text-3xl font-extrabold text-white">本月各印表機列印量對照 (Monthly Comparison)</h3>
             </div>
-            <div id="month-comparison-chart" class="w-full h-96"></div>
+            <div id="month-chart" class="w-full h-96"></div>
         </section>
 
         <section class="glass-panel rounded-[3.5rem] p-12">
             <div class="flex items-center gap-4 mb-8">
-                <span class="w-3 h-8 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(52,211,153,0.5)]"></span>
-                <h3 class="text-3xl font-extrabold">全年度各印表機總量對照</h3>
+                <span class="w-3 h-8 bg-emerald-500 rounded-full"></span>
+                <h3 class="text-3xl font-extrabold text-white">全年度各印表機總量對照 (Annual Total)</h3>
             </div>
-            <div id="year-comparison-chart" class="w-full h-96"></div>
+            <div id="year-chart" class="w-full h-96"></div>
         </section>
 
         <section class="glass-panel rounded-[3.5rem] overflow-hidden">
-            <div class="px-12 py-8 bg-white/5 border-b border-white/5">
-                <h3 class="text-3xl font-extrabold text-white">本日列印量明細 <span
-                        class="text-lg text-slate-500 font-mono ml-4" id="today-date"></span></h3>
+            <div class="px-12 py-8 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                <h3 class="text-3xl font-extrabold text-white">本日列印量明細</h3>
+                <span id="today-date-display"
+                    class="text-2xl font-mono text-indigo-400 font-bold bg-white/5 px-6 py-2 rounded-2xl border border-white/10 tracking-widest"></span>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left">
@@ -104,13 +101,13 @@
                         <tr class="bg-indigo-500/10 text-indigo-200 text-sm font-black uppercase tracking-[0.2em]">
                             <th class="px-12 py-8">放置地點 / IP</th>
                             <th class="px-8 py-8">設備型號</th>
-                            <th class="px-8 py-8 text-center text-blue-accent">列印</th>
-                            <th class="px-8 py-8 text-center text-green-accent">影印</th>
-                            <th class="px-8 py-8 text-center text-amber-accent">傳真</th>
+                            <th class="px-8 py-8 text-center text-accent-blue">列印</th>
+                            <th class="px-8 py-8 text-center text-accent-green">影印</th>
+                            <th class="px-8 py-8 text-center text-accent-amber">傳真</th>
                             <th class="px-12 py-8 text-right text-white">今日合計</th>
                         </tr>
                     </thead>
-                    <tbody id="today-table-body" class="divide-y divide-white/5">
+                    <tbody id="today-table-body" class="divide-y divide-white/5 text-lg font-semibold">
                     </tbody>
                 </table>
             </div>
@@ -118,39 +115,64 @@
     </main>
 
     <script>
-        let printerData = [];
+        let rawData = null;
 
         async function init() {
             const res = await fetch('data.json');
-            printerData = await res.json();
+            rawData = await res.json();
+
+            // 讀取日期顯示
+            document.getElementById('today-date-display').innerText = rawData.generated_at;
 
             const years = new Set();
-            printerData.forEach(p => p.history.forEach(h => years.add(h.year)));
+            rawData.printers.forEach(p => p.history.forEach(h => years.add(h.year)));
             const selector = document.getElementById('year-selector');
             Array.from(years).sort().reverse().forEach(y => {
                 const opt = document.createElement('option');
-                opt.value = y; opt.innerText = y + " 年度";
+                opt.value = y; opt.innerText = y + " 年度報告";
                 selector.appendChild(opt);
             });
-
-            document.getElementById('today-date').innerText = new Date().toLocaleDateString();
             render();
         }
 
         function render() {
-            const selectedYear = document.getElementById('year-selector').value;
+            const year = document.getElementById('year-selector').value;
+            const printers = rawData.printers;
 
-            // 繪製本月圖表 (假設資料中最後一個月為本月)
-            renderComparisonChart("#month-comparison-chart", "month", selectedYear);
+            // 1. 本月對照圖
+            const monthData = printers.map(p => {
+                const yh = p.history.find(h => h.year === year);
+                if (!yh) return { label: p.location, value: 0 };
+                const lastMonth = yh.months[yh.months.length - 1];
+                return { label: p.location, value: lastMonth.month_metrics.total };
+            }).sort((a, b) => b.value - a.value);
+            drawComparisonChart("#month-chart", monthData, "bar-month");
 
-            // 繪製年度圖表
-            renderComparisonChart("#year-comparison-chart", "year", selectedYear);
+            // 2. 年度對照圖
+            const yearData = printers.map(p => {
+                const yh = p.history.find(h => h.year === year);
+                return { label: p.location, value: yh ? yh.year_total.total : 0 };
+            }).sort((a, b) => b.value - a.value);
+            drawComparisonChart("#year-chart", yearData, "bar-year");
 
-            // 渲染今日表格
-            renderTodayTable();
+            // 3. 今日表格
+            const tbody = document.getElementById('today-table-body');
+            tbody.innerHTML = printers.map(p => `
+                <tr class="hover:bg-white/5 transition-all">
+                    <td class="px-12 py-8">
+                        <div class="text-2xl font-black text-white">${p.location}</div>
+                        <div class="text-base text-indigo-300/50 font-mono mt-1">${p.ip}</div>
+                    </td>
+                    <td class="px-8 py-8 text-slate-300 font-bold">${p.model}</td>
+                    <td class="px-8 py-8 text-center text-2xl font-black text-accent-blue">${p.today.print.toLocaleString()}</td>
+                    <td class="px-8 py-8 text-center text-2xl font-black text-accent-green">${p.today.copy.toLocaleString()}</td>
+                    <td class="px-8 py-8 text-center text-2xl font-black text-accent-amber">${p.today.fax.toLocaleString()}</td>
+                    <td class="px-12 py-8 text-right text-3xl font-black text-white">${p.today.total.toLocaleString()}</td>
+                </tr>
+            `).join('');
         }
 
-        function renderComparisonChart(selector, type, year) {
+        function drawComparisonChart(selector, data, barClass) {
             const container = d3.select(selector);
             const width = container.node().getBoundingClientRect().width;
             const height = 384;
@@ -159,56 +181,23 @@
             const svg = container.append("svg").attr("width", width).attr("height", height)
                 .append("g").attr("transform", "translate(70, 30)");
 
-            // 準備數據：各印表機的數值
-            let plotData = printerData.map(p => {
-                const yh = p.history.find(h => h.year === year);
-                if (!yh) return { label: p.location, value: 0 };
+            const x = d3.scaleBand().range([0, width - 100]).domain(data.map(d => d.label)).padding(0.4);
+            const y = d3.scaleLinear().range([height - 100, 0]).domain([0, d3.max(data, d => d.value) * 1.2 || 10]);
 
-                if (type === "month") {
-                    const latestMonth = yh.months[yh.months.length - 1];
-                    return { label: p.location, value: latestMonth.month_metrics.total };
-                } else {
-                    return { label: p.location, value: yh.year_total.total };
-                }
-            }).sort((a, b) => b.value - a.value);
-
-            const x = d3.scaleBand().range([0, width - 100]).domain(plotData.map(d => d.label)).padding(0.4);
-            const y = d3.scaleLinear().range([height - 100, 0]).domain([0, d3.max(plotData, d => d.value) * 1.2 || 10]);
-
-            // X 軸
             svg.append("g").attr("transform", `translate(0, ${height - 100})`).call(d3.axisBottom(x))
-                .selectAll("text").attr("transform", "rotate(-20)").style("text-anchor", "end").style("fill", "#94a3b8").style("font-size", "14px").style("font-weight", "600");
+                .selectAll("text").attr("transform", "rotate(-25)").style("text-anchor", "end").style("fill", "#94a3b8").style("font-size", "14px").style("font-weight", "600");
 
-            // Y 軸
             svg.append("g").call(d3.axisLeft(y).ticks(5).tickSize(-width + 100))
                 .call(g => g.select(".domain").remove())
                 .call(g => g.selectAll(".tick line").attr("stroke", "rgba(255,255,255,0.05)"))
-                .selectAll("text").style("fill", "#94a3b8").style("font-size", "13px");
+                .selectAll("text").style("fill", "#94a3b8").style("font-size", "12px");
 
-            svg.selectAll(".bar")
-                .data(plotData).enter().append("rect")
-                .attr("class", type === "month" ? "bar-month" : "bar-year")
+            svg.selectAll(".bar").data(data).enter().append("rect")
+                .attr("class", barClass)
                 .attr("x", d => x(d.label))
                 .attr("y", d => y(d.value))
                 .attr("width", x.bandwidth())
                 .attr("height", d => (height - 100) - y(d.value));
-        }
-
-        function renderTodayTable() {
-            const tbody = document.getElementById('today-table-body');
-            tbody.innerHTML = printerData.map(d => `
-                <tr class="hover:bg-white/5 transition-all group">
-                    <td class="px-12 py-9">
-                        <div class="text-2xl font-black text-white group-hover:text-indigo-400 transition-colors">${d.location}</div>
-                        <div class="text-base text-indigo-300/50 font-mono mt-1">${d.ip}</div>
-                    </td>
-                    <td class="px-8 py-9 text-lg font-bold text-slate-300">${d.model}</td>
-                    <td class="px-8 py-9 text-center text-2xl font-black text-blue-accent">${d.today.print.toLocaleString()}</td>
-                    <td class="px-8 py-9 text-center text-2xl font-black text-green-accent">${d.today.copy.toLocaleString()}</td>
-                    <td class="px-8 py-9 text-center text-2xl font-black text-amber-accent">${d.today.fax.toLocaleString()}</td>
-                    <td class="px-12 py-9 text-right text-3xl font-black text-white">${d.today.total.toLocaleString()}</td>
-                </tr>
-            `).join('');
         }
 
         window.onload = init;

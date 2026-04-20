@@ -43,6 +43,12 @@ type PrinterStats struct {
 	Today    Metrics    `json:"today"`
 }
 
+// 建立一個包含元數據的包裝結構
+type DashboardData struct {
+	GeneratedAt string         `json:"generated_at"`
+	Printers    []PrinterStats `json:"printers"`
+}
+
 func r_int(s string) int {
 	s = strings.ReplaceAll(s, ",", "")
 	v, _ := strconv.Atoi(s)
@@ -62,7 +68,7 @@ func main() {
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
-	var latestDate string
+	var latestDate string // 宣告變數
 
 	for _, file := range files {
 		f, _ := os.Open(file)
@@ -71,7 +77,7 @@ func main() {
 
 		base := filepath.Base(file)
 		dateStr := base[:10]
-		latestDate = dateStr
+		latestDate = dateStr // 賦值：記錄最後一個檔案的日期
 		year, month := dateStr[:4], dateStr[5:7]
 
 		for i, r := range records {
@@ -114,7 +120,7 @@ func main() {
 		}
 	}
 
-	var result []PrinterStats
+	var printerList []PrinterStats
 	for ip, years := range storage {
 		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip]}
 		for y, months := range years {
@@ -134,9 +140,16 @@ func main() {
 			}
 			p.History = append(p.History, yData)
 		}
-		result = append(result, p)
+		printerList = append(printerList, p)
 	}
 
-	out, _ := json.MarshalIndent(result, "", "  ")
+	// 使用包裝結構，讓 latestDate 被用到
+	finalData := DashboardData{
+		GeneratedAt: latestDate,
+		Printers:    printerList,
+	}
+
+	out, _ := json.MarshalIndent(finalData, "", "  ")
 	os.WriteFile("data.json", out, 0644)
+	fmt.Println("Success: data.json updated with date:", latestDate)
 }
