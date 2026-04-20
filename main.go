@@ -49,7 +49,7 @@ func r_int(s string) int {
 }
 
 func main() {
-	files, _ := filepath.Glob("private-data/data/*.csv")
+	files, _ := filepath.Glob("data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
@@ -58,7 +58,6 @@ func main() {
 	}
 
 	prevCounters := make(map[string]map[string]int)
-	// IP -> Year -> Month -> *MonthData
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
@@ -68,7 +67,7 @@ func main() {
 		records, _ := csv.NewReader(f).ReadAll()
 		f.Close()
 
-		base := filepath.Base(file) // yyyy-mm-dd.csv
+		base := filepath.Base(file)
 		if len(base) < 10 {
 			continue
 		}
@@ -97,15 +96,12 @@ func main() {
 					dm = Metrics{}
 				}
 
-				// 初始化 IP 層
 				if storage[ip] == nil {
 					storage[ip] = make(map[string]map[string]*MonthData)
 				}
-				// 初始化年份層
 				if storage[ip][year] == nil {
-					storage[ip][year] = make(map[string]*MonthData) // 修正點：必須與結構定義一致
+					storage[ip][year] = make(map[string]*MonthData)
 				}
-				// 初始化月份層
 				if storage[ip][year][month] == nil {
 					storage[ip][year][month] = &MonthData{Month: month, DailyLogs: []DailyLog{}}
 				}
@@ -116,7 +112,6 @@ func main() {
 				m.MonthMetrics.Copy += dm.Copy
 				m.MonthMetrics.Fax += dm.Fax
 				m.MonthMetrics.Total += dm.Total
-
 				todayMetrics[ip] = dm
 			}
 			prevCounters[ip] = curr
@@ -125,23 +120,16 @@ func main() {
 
 	var result []PrinterStats
 	for ip, years := range storage {
-		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip], History: []YearData{}}
-
-		yKeys := make([]string, 0, len(years))
-		for y := range years {
-			yKeys = append(yKeys, y)
-		}
-		sort.Sort(sort.Reverse(sort.StringSlice(yKeys)))
-
-		for _, y := range yKeys {
-			yData := YearData{Year: y, Months: []MonthData{}}
-			mKeys := make([]string, 0, len(years[y]))
-			for m := range years[y] {
+		p := PrinterStats{IP: ip, Location: info[ip][0], Model: info[ip][1], Today: todayMetrics[ip]}
+		for y, months := range years {
+			yData := YearData{Year: y}
+			mKeys := make([]string, 0, len(months))
+			for m := range months {
 				mKeys = append(mKeys, m)
 			}
 			sort.Strings(mKeys)
 			for _, mk := range mKeys {
-				yData.Months = append(yData.Months, *years[y][mk])
+				yData.Months = append(yData.Months, *months[mk])
 			}
 			p.History = append(p.History, yData)
 		}
