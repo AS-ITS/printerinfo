@@ -43,7 +43,6 @@ type PrinterStats struct {
 	Today    Metrics    `json:"today"`
 }
 
-// 建立一個包含元數據的包裝結構
 type DashboardData struct {
 	GeneratedAt string         `json:"generated_at"`
 	Printers    []PrinterStats `json:"printers"`
@@ -56,7 +55,7 @@ func r_int(s string) int {
 }
 
 func main() {
-	files, _ := filepath.Glob("private-data/data/*.csv")
+	files, _ := filepath.Glob("data/*.csv")
 	sort.Strings(files)
 
 	if len(files) == 0 {
@@ -68,7 +67,7 @@ func main() {
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
-	var latestDate string // 宣告變數
+	var latestDate string
 
 	for _, file := range files {
 		f, _ := os.Open(file)
@@ -77,7 +76,7 @@ func main() {
 
 		base := filepath.Base(file)
 		dateStr := base[:10]
-		latestDate = dateStr // 賦值：記錄最後一個檔案的日期
+		latestDate = dateStr
 		year, month := dateStr[:4], dateStr[5:7]
 
 		for i, r := range records {
@@ -143,13 +142,7 @@ func main() {
 		printerList = append(printerList, p)
 	}
 
-	// 使用包裝結構，讓 latestDate 被用到
-	finalData := DashboardData{
-		GeneratedAt: latestDate,
-		Printers:    printerList,
-	}
-
+	finalData := DashboardData{GeneratedAt: latestDate, Printers: printerList}
 	out, _ := json.MarshalIndent(finalData, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("Success: data.json updated with date:", latestDate)
 }
