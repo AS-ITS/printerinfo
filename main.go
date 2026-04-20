@@ -30,8 +30,9 @@ type MonthData struct {
 }
 
 type YearData struct {
-	Year   string      `json:"year"`
-	Months []MonthData `json:"months"`
+	Year      string      `json:"year"`
+	YearTotal Metrics     `json:"year_total"`
+	Months    []MonthData `json:"months"`
 }
 
 type PrinterStats struct {
@@ -61,6 +62,7 @@ func main() {
 	storage := make(map[string]map[string]map[string]*MonthData)
 	info := make(map[string][2]string)
 	todayMetrics := make(map[string]Metrics)
+	var latestDate string
 
 	for _, file := range files {
 		f, _ := os.Open(file)
@@ -68,10 +70,8 @@ func main() {
 		f.Close()
 
 		base := filepath.Base(file)
-		if len(base) < 10 {
-			continue
-		}
 		dateStr := base[:10]
+		latestDate = dateStr
 		year, month := dateStr[:4], dateStr[5:7]
 
 		for i, r := range records {
@@ -80,10 +80,7 @@ func main() {
 			}
 			ip := r[0]
 			info[ip] = [2]string{r[1], r[2]}
-
-			curr := map[string]int{
-				"total": r_int(r[3]), "print": r_int(r[4]), "copy": r_int(r[5]), "fax": r_int(r[9]),
-			}
+			curr := map[string]int{"total": r_int(r[3]), "print": r_int(r[4]), "copy": r_int(r[5]), "fax": r_int(r[9])}
 
 			if prev, ok := prevCounters[ip]; ok {
 				dm := Metrics{
@@ -105,7 +102,6 @@ func main() {
 				if storage[ip][year][month] == nil {
 					storage[ip][year][month] = &MonthData{Month: month, DailyLogs: []DailyLog{}}
 				}
-
 				m := storage[ip][year][month]
 				m.DailyLogs = append(m.DailyLogs, DailyLog{Date: dateStr, Metrics: dm})
 				m.MonthMetrics.Print += dm.Print
@@ -129,7 +125,12 @@ func main() {
 			}
 			sort.Strings(mKeys)
 			for _, mk := range mKeys {
-				yData.Months = append(yData.Months, *months[mk])
+				mDat := *months[mk]
+				yData.Months = append(yData.Months, mDat)
+				yData.YearTotal.Print += mDat.MonthMetrics.Print
+				yData.YearTotal.Copy += mDat.MonthMetrics.Copy
+				yData.YearTotal.Fax += mDat.MonthMetrics.Fax
+				yData.YearTotal.Total += mDat.MonthMetrics.Total
 			}
 			p.History = append(p.History, yData)
 		}
@@ -138,5 +139,4 @@ func main() {
 
 	out, _ := json.MarshalIndent(result, "", "  ")
 	os.WriteFile("data.json", out, 0644)
-	fmt.Println("Success: data.json generated.")
 }
