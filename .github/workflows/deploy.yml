@@ -4,6 +4,10 @@ on:
   schedule:
     # 每天台北時間早上 8 點執行 (UTC 0 點)
     - cron: '0 0 * * *'
+  # 2. 當有任何檔案 push (上傳/更新) 到 main 分支時觸發
+  push:
+    branches:
+      - main      
   workflow_dispatch:
     # 允許手動從 Actions 頁面觸發執行
 
