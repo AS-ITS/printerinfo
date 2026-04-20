@@ -7,7 +7,12 @@ on:
   # 2. 當有任何檔案 push (上傳/更新) 到 main 分支時觸發
   push:
     branches:
-      - main      
+      - main
+    paths:
+      - 'images/**'        # 當圖片目錄有增減或修改時
+      - 'favicon.ico'      # 當網站圖標更新時
+      - 'main.go'          # 當後端邏輯修改時
+      - 'index.html'       # 當前端介面修改時
   workflow_dispatch:
     # 允許手動從 Actions 頁面觸發執行
 
