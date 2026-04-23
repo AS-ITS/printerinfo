@@ -1,82 +1,27 @@
-name: Printer Daily Usage Processor
-
+name: Vercel Production Deployment
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 on:
-  schedule:
-    # 每天台北時間早上 8 點執行 (UTC 0 點)
-    - cron: '0 0 * * *'
-  # 2. 當有任何檔案 push (上傳/更新) 到 main 分支時觸發
   push:
     branches:
-      - main
-    paths:
-      - 'images/**'        # 當圖片目錄有增減或修改時
-      - 'favicon.ico'      # 當網站圖標更新時
-      - 'main.go'          # 當後端邏輯修改時
-      - 'index.html'       # 當前端介面修改時
-  workflow_dispatch:
-    # 允許手動從 Actions 頁面觸發執行
-
-# 賦予 Action 寫入權限，以便推送到 gh-pages 分支
-permissions:
-  contents: write
+      - main  # 只有推送到 main 分支時才執行部署
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    # 加入這兩行
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
     steps:
-      # 1. 檢出 Public Repo (本專案，含 main.go 與 index.html)
-      - name: Checkout Public Repo
-        uses: actions/checkout@v5
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # 2. 檢出 Private Repo (含有資料集的儲存庫)
-      - name: Checkout Private Data Repo
-        uses: actions/checkout@v5
-        with:
-          # 請將下面的路徑替換成你的私有 Repo 實際路徑
-          repository: AS-ITS/printer-data
-          # 使用你在 Secret 中設定的 Token
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }} 
-          # 將私有資料下載到名為 private-data 的資料夾
-          path: private-data
-          persist-credentials: false # 建議加入這一行，避免 Token 衝突
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
-      # 3. 設定 Go 語言環境
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          cache: true
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      # 4. 初始化並執行 Go 程式
-      - name: Run Go Data Processor
-        run: |
-          # 如果沒有 go.mod，這裡會自動初始化
-          if [ ! -f go.mod ]; then
-            go mod init printer-stats
-          fi
-          go mod tidy
-          # 執行計算邏輯，將結果輸出為 data.json
-          go run main.go
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      # 5. 部署到 GitHub Pages 分支
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          # 要發布到網頁的目錄（目前根目錄下有 index.html 與產出的 data.json）
-          publish_dir: .
-          # 推送到 gh-pages 分支
-          publish_branch: gh-pages
-          # 關鍵：排除不需要在網頁上公開的原始碼與私有數據備份
-          exclude_assets: '.github,main.go,go.mod,go.sum,private-data,README.md'
-          # 強制覆蓋，保持 gh-pages 分支乾淨
-          force_orphan: true
-
-      # 6. (選配) 錯誤回報 - 如果失敗則顯示訊息
-      - name: Notify on Failure
-        if: failure()
-        run: echo "資料預處理或部署過程出錯，請檢查日誌。"
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
