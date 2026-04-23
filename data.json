@@ -1,0 +1,539 @@
+{
+  "generated_at": "2026-04-22",
+  "printers": [
+    {
+      "ip": "10.16.10.21",
+      "location": "處長室",
+      "model": "HP Color LaserJet MFP M480",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 0,
+            "copy": 0,
+            "fax": 0,
+            "total": 145
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 0,
+                "copy": 0,
+                "fax": 0,
+                "total": 145
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 41
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 10
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 11
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 16
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 55
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 12
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 0,
+        "copy": 0,
+        "fax": 0,
+        "total": 12
+      }
+    },
+    {
+      "ip": "10.16.10.22",
+      "location": "推廣科門口第一台",
+      "model": "HP LaserJet 700 M712",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 0,
+            "copy": 0,
+            "fax": 0,
+            "total": 17
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 0,
+                "copy": 0,
+                "fax": 0,
+                "total": 17
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 4
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 3
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 2
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 6
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 1
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 1
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 0,
+        "copy": 0,
+        "fax": 0,
+        "total": 1
+      }
+    },
+    {
+      "ip": "10.16.10.20",
+      "location": "推廣科門口第二台",
+      "model": "HP Color LaserJet M856",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 0,
+            "copy": 0,
+            "fax": 0,
+            "total": 2174
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 0,
+                "copy": 0,
+                "fax": 0,
+                "total": 2174
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 163
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 96
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 253
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 76
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 135
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 1451
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 0,
+        "copy": 0,
+        "fax": 0,
+        "total": 1451
+      }
+    },
+    {
+      "ip": "10.16.10.11:8000",
+      "location": "資安科門口第一台",
+      "model": "Canon iR-ADV C5535",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 0,
+            "copy": 0,
+            "fax": 0,
+            "total": 0
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 0,
+                "copy": 0,
+                "fax": 0,
+                "total": 0
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 0,
+                    "copy": 0,
+                    "fax": 0,
+                    "total": 0
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 0,
+        "copy": 0,
+        "fax": 0,
+        "total": 0
+      }
+    },
+    {
+      "ip": "10.16.10.13",
+      "location": "推廣科門口第三台",
+      "model": "FUJIFILM Apeos 5570",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 1037,
+            "copy": 476,
+            "fax": 0,
+            "total": 1513
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 1037,
+                "copy": 476,
+                "fax": 0,
+                "total": 1513
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 157,
+                    "copy": 73,
+                    "fax": 0,
+                    "total": 230
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 110,
+                    "copy": 70,
+                    "fax": 0,
+                    "total": 180
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 645,
+                    "copy": 98,
+                    "fax": 0,
+                    "total": 743
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 44,
+                    "copy": 45,
+                    "fax": 0,
+                    "total": 89
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 37,
+                    "copy": 133,
+                    "fax": 0,
+                    "total": 170
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 44,
+                    "copy": 57,
+                    "fax": 0,
+                    "total": 101
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 44,
+        "copy": 57,
+        "fax": 0,
+        "total": 101
+      }
+    },
+    {
+      "ip": "10.16.10.12",
+      "location": "資安科門口第二台",
+      "model": "FUJI XEROX ApeosPort 3560",
+      "history": [
+        {
+          "year": "2026",
+          "year_total": {
+            "print": 1220,
+            "copy": 66,
+            "fax": 0,
+            "total": 1286
+          },
+          "months": [
+            {
+              "month": "04",
+              "month_metrics": {
+                "print": 1220,
+                "copy": 66,
+                "fax": 0,
+                "total": 1286
+              },
+              "daily_logs": [
+                {
+                  "date": "2026-04-15",
+                  "metrics": {
+                    "print": 312,
+                    "copy": 1,
+                    "fax": 0,
+                    "total": 313
+                  }
+                },
+                {
+                  "date": "2026-04-16",
+                  "metrics": {
+                    "print": 93,
+                    "copy": 14,
+                    "fax": 0,
+                    "total": 107
+                  }
+                },
+                {
+                  "date": "2026-04-17",
+                  "metrics": {
+                    "print": 305,
+                    "copy": 21,
+                    "fax": 0,
+                    "total": 326
+                  }
+                },
+                {
+                  "date": "2026-04-20",
+                  "metrics": {
+                    "print": 187,
+                    "copy": 10,
+                    "fax": 0,
+                    "total": 197
+                  }
+                },
+                {
+                  "date": "2026-04-21",
+                  "metrics": {
+                    "print": 175,
+                    "copy": 18,
+                    "fax": 0,
+                    "total": 193
+                  }
+                },
+                {
+                  "date": "2026-04-22",
+                  "metrics": {
+                    "print": 148,
+                    "copy": 2,
+                    "fax": 0,
+                    "total": 150
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "today": {
+        "print": 148,
+        "copy": 2,
+        "fax": 0,
+        "total": 150
+      }
+    }
+  ]
+}
