@@ -3,3 +3,4 @@
 scripts/
 go.mod
 go.sum
+*.old
