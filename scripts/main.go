@@ -22,6 +22,7 @@ type DailyRow struct {
 	CopyCount  int    `json:"copy_count"`
 	ScanTotal  int    `json:"scan_total"`
 	FaxCount   int    `json:"fax_count"`
+	DailyTotal int    `json:"daily_total"`
 	DailyPrint int    `json:"daily_print"`
 	DailyCopy  int    `json:"daily_copy"`
 	DailyScan  int    `json:"daily_scan"`
@@ -43,12 +44,12 @@ func main() {
 	defer db.Close()
 
 	// 3. 查詢我們之前建立的視圖
-	// 這裡我們直接選取所有歷史紀錄，由前端進行分類顯示
+	// 查詢更新後的 daily_stats 視圖
 	rows, err := db.Query(`
 		SELECT 
 			ip_address, location, model, recorded_at::text, 
 			total_count, print_count, copy_count, scan_total, fax_count,
-			daily_print, daily_copy, daily_scan, daily_fax
+			daily_total, daily_print, daily_copy, daily_scan, daily_fax
 		FROM daily_stats
 		ORDER BY recorded_at DESC
 	`)
@@ -63,7 +64,7 @@ func main() {
 		err := rows.Scan(
 			&r.IPAddress, &r.Location, &r.Model, &r.RecordedAt,
 			&r.TotalCount, &r.PrintCount, &r.CopyCount, &r.ScanTotal, &r.FaxCount,
-			&r.DailyPrint, &r.DailyCopy, &r.DailyScan, &r.DailyFax,
+			&r.DailyTotal, &r.DailyPrint, &r.DailyCopy, &r.DailyScan, &r.DailyFax,
 		)
 		if err != nil {
 			log.Fatal("讀取資料失敗:", err)
