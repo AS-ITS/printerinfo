@@ -51,7 +51,7 @@
         async function init() {
             try {
                 // 假設您的 Go 程式輸出的 JSON 放在此路徑
-                const response = await fetch('data.json');
+                const response = await fetch('public/data.json');
                 const rawData = await response.json();
 
                 const printers = transformData(rawData);
