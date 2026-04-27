@@ -3,3 +3,4 @@ index_01.html
 .vercel
 .env*.local
 envfile
+public
