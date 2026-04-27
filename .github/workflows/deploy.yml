@@ -26,9 +26,8 @@ jobs:
       # 步驟 A: 執行 Go 程式從 Supabase 抓資料並產生 json
       - name: Generate data.json
         run: |
-          cd scripts
           go mod tidy
-          go run main.go
+          go run scripts/main.go
           ls -R public/  # 檢查 data.json 是否真的在裡面
         env:
           SUPABASE_DB_CONNECTION: ${{ secrets.SUPABASE_DB_CONNECTION }}
