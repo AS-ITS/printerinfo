@@ -27,6 +27,20 @@
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(99, 102, 241, 0.4);
         }
+
+        /* 滾動條美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 10px;
+        }
     </style>
 </head>
 
@@ -36,26 +50,41 @@
             <div>
                 <h1 class="text-5xl font-extrabold tracking-tighter mb-2">OPERATIONS<span
                         class="text-indigo-500">CENTER</span></h1>
-                <p class="text-slate-400 font-medium">全院印表機監控系統 · 實時數據分析</p>
+                <p class="text-slate-400 font-medium">全院印表機監控系統 · 歷史數據整合版</p>
             </div>
-            <div class="text-right text-slate-500 font-mono text-sm">
-                SYSTEM STATUS: <span class="text-emerald-400">ACTIVE</span>
-            </div>
+            <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
         </header>
 
         <div id="printer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         </div>
     </div>
 
+    <div id="history-modal"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel w-full max-w-4xl max-h-[80vh] rounded-[2.5rem] overflow-hidden flex flex-col">
+            <div class="p-8 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h2 id="modal-title" class="text-3xl font-black">歷史數據統計</h2>
+                    <p id="modal-subtitle" class="text-indigo-400 font-mono text-sm"></p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-4xl">&times;</button>
+            </div>
+            <div class="p-8 overflow-y-auto" id="modal-content">
+            </div>
+        </div>
+    </div>
+
     <script>
+        let cachedPrinters = [];
+
         async function init() {
             try {
-                // 假設您的 Go 程式輸出的 JSON 放在此路徑
-                const response = await fetch('public/data.json');
+                const response = await fetch('./public/data.json');
                 const rawData = await response.json();
+                document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
 
-                const printers = transformData(rawData);
-                renderPrinters(printers);
+                cachedPrinters = transformData(rawData);
+                renderPrinters(cachedPrinters);
             } catch (e) {
                 console.error("載入失敗:", e);
             }
@@ -64,46 +93,43 @@
         function transformData(rawData) {
             const groups = {};
             rawData.forEach(row => {
-                if (!groups[row.ip_address]) {
-                    groups[row.ip_address] = {
-                        ip: row.ip_address,
-                        location: row.location,
-                        model: row.model,
+                const ip = row.ip_address;
+                if (!groups[ip]) {
+                    groups[ip] = {
+                        ip, location: row.location, model: row.model,
                         total_all_time: row.total_count,
-                        daily_logs: []
+                        daily_logs: [],
+                        yearly_stats: {} // 用於彙總每年/每月的量
                     };
                 }
 
-                // 核心邏輯：修正數據為 0 的問題
-                let p = row.daily_print;
-                let c = row.daily_copy;
-                let f = row.daily_fax;
+                // 處理增量邏輯 (修正版)
+                let p = row.daily_print, c = row.daily_copy, f = row.daily_fax, t = row.daily_total;
+                if (p === 0 && c === 0 && f === 0 && t > 0) p = t;
 
-                // 如果分類數據都是 0，但總量 daily_total 有值，則將增量歸入列印
-                if (p === 0 && c === 0 && f === 0 && row.daily_total > 0) {
-                    p = row.daily_total;
-                }
+                const dateObj = new Date(row.recorded_at);
+                const year = dateObj.getFullYear();
+                const month = dateObj.getMonth() + 1;
 
-                groups[row.ip_address].daily_logs.push({
-                    date: row.recorded_at,
-                    metrics: {
-                        print: p,
-                        copy: c,
-                        fax: f,
-                        total: row.daily_total // 直接使用 SQL 算好的總增量
-                    }
-                });
+                // 累計年度/月份數據
+                if (!groups[ip].yearly_stats[year]) groups[ip].yearly_stats[year] = { total: 0, months: {} };
+                if (!groups[ip].yearly_stats[year].months[month]) groups[ip].yearly_stats[year].months[month] = 0;
+
+                groups[ip].yearly_stats[year].total += t;
+                groups[ip].yearly_stats[year].months[month] += t;
+
+                groups[ip].daily_logs.push({ date: row.recorded_at, metrics: { print: p, copy: c, fax: f, total: t } });
             });
             return Object.values(groups);
         }
 
         function renderPrinters(printers) {
             const grid = document.getElementById('printer-grid');
-            grid.innerHTML = printers.map(p => {
+            grid.innerHTML = printers.map((p, idx) => {
                 const latest = p.daily_logs[0]?.metrics || { print: 0, copy: 0, fax: 0, total: 0 };
                 return `
-                    <div class="glass-panel p-8 rounded-[2rem] transition-all duration-500 card-hover">
-                        <div class="flex justify-between items-start mb-8">
+                    <div class="glass-panel p-8 rounded-[2rem] transition-all duration-500 card-hover flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-6">
                             <div>
                                 <h3 class="text-2xl font-black text-white">${p.location}</h3>
                                 <p class="text-indigo-400 font-mono text-sm font-bold mt-1">${p.ip}</p>
@@ -111,20 +137,20 @@
                             <span class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">${p.model}</span>
                         </div>
 
-                        <div class="space-y-4 mb-8">
-                            ${renderMetric("今日列印", latest.print, "indigo")}
-                            ${renderMetric("今日影印", latest.copy, "emerald")}
-                            ${renderMetric("今日傳真", latest.fax, "amber")}
+                        <div class="space-y-3 mb-6 flex-grow">
+                            ${renderRow("今日列印", latest.print, "indigo")}
+                            ${renderRow("今日影印", latest.copy, "emerald")}
+                            ${renderRow("今日總計", latest.total, "white", "text-xl font-black")}
                         </div>
 
-                        <div class="pt-6 border-t border-white/10 flex justify-between items-end">
-                            <div>
-                                <p class="text-slate-500 text-xs font-bold uppercase mb-1">今日總量</p>
-                                <p class="text-4xl font-black text-white">${latest.total.toLocaleString()}</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-slate-500 text-xs font-bold uppercase mb-1">累積總印量</p>
-                                <p class="text-lg font-bold text-slate-300">${p.total_all_time.toLocaleString()}</p>
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <button onclick="showHistory(${idx})" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-left transition-colors">
+                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">查看歷史數據</p>
+                                <p class="text-lg font-bold text-indigo-300 underline decoration-indigo-500/50">History Logs</p>
+                            </button>
+                            <div class="bg-white/5 p-4 rounded-2xl">
+                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">累計總印量</p>
+                                <p class="text-lg font-bold text-slate-200">${p.total_all_time.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
@@ -132,13 +158,56 @@
             }).join('');
         }
 
-        function renderMetric(label, value, color) {
+        function renderRow(label, value, color, extraClass = "") {
             return `
                 <div class="flex justify-between items-center">
                     <span class="text-slate-400 font-medium">${label}</span>
-                    <span class="text-${color}-400 font-black font-mono text-lg">${value.toLocaleString()}</span>
+                    <span class="text-${color}-400 font-mono ${extraClass}">${value.toLocaleString()}</span>
                 </div>
             `;
+        }
+
+        // 歷史彈窗邏輯
+        function showHistory(index) {
+            const p = cachedPrinters[index];
+            document.getElementById('modal-subtitle').innerText = `${p.location} (${p.ip})`;
+
+            let html = `
+                <div class="space-y-8">
+                    <section>
+                        <h4 class="text-indigo-400 font-bold mb-4 flex items-center">
+                            <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> 年度與月份統計
+                        </h4>
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-slate-500 text-xs uppercase font-bold border-b border-white/10">
+                                    <th class="py-3">年度/月份</th>
+                                    <th class="py-3 text-right">總印量 (Incremental)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                ${Object.keys(p.yearly_stats).sort((a, b) => b - a).map(year => {
+                const yearData = p.yearly_stats[year];
+                let rows = `<tr class="border-b border-white/5 bg-indigo-500/5"><td class="py-3 font-black text-white">${year} 年總計</td><td class="py-3 text-right font-black text-indigo-400">${yearData.total.toLocaleString()}</td></tr>`;
+
+                // 月份細項
+                Object.keys(yearData.months).sort((a, b) => b - a).forEach(month => {
+                    rows += `<tr class="border-b border-white/5"><td class="py-2 pl-4 text-slate-400">${month} 月</td><td class="py-2 text-right text-slate-300">${yearData.months[month].toLocaleString()}</td></tr>`;
+                });
+                return rows;
+            }).join('')}
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            `;
+
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('history-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('history-modal').classList.add('hidden');
         }
 
         init();
