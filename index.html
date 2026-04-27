@@ -125,12 +125,121 @@
     </div>
 
     <script>
+        // ── Supabase 設定 ──────────────────────────────────────────
+        const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzMDIyMjgsImV4cCI6MjA2MDg3ODIyOH0.JhMn4jHBVTmODMmFi7IxQqBZMHjLnT-RqcDFaNz-w-A';
+
         let rawData = null;
+
+        /**
+         * 從 Supabase 的 daily_stats View 取得所有資料，
+         * 然後轉換成原本 data.json 的巢狀結構：
+         * { generated_at, printers: [{ ip, location, model, today, history: [{ year, year_total, months: [{ month, month_metrics, daily_logs }] }] }] }
+         */
+        async function fetchFromSupabase() {
+            const url = `${SUPABASE_URL}/rest/v1/daily_stats?select=*&order=recorded_at.asc`;
+            const res = await fetch(url, {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                }
+            });
+            if (!res.ok) throw new Error(`Supabase API error: ${res.status} ${res.statusText}`);
+            return await res.json();
+        }
+
+        /**
+         * 將 Supabase 扁平資料轉換為巢狀結構
+         */
+        function transformData(rows) {
+            // 依 IP 分組
+            const printerMap = {};
+            let latestDate = '';
+
+            for (const row of rows) {
+                const ip = row.ip_address;
+                const dateStr = row.recorded_at; // "YYYY-MM-DD"
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(5, 7);
+
+                if (dateStr > latestDate) latestDate = dateStr;
+
+                if (!printerMap[ip]) {
+                    printerMap[ip] = {
+                        ip: ip,
+                        location: row.location || '',
+                        model: row.model || '',
+                        history: {},  // year -> { months: { month -> MonthData } }
+                        _lastMetrics: null,
+                    };
+                }
+                const printer = printerMap[ip];
+
+                // 計算每日增量的 total（View 沒有 daily_total）
+                const dailyTotal = (row.daily_print || 0) + (row.daily_copy || 0) + (row.daily_fax || 0);
+
+                const dailyMetrics = {
+                    print: row.daily_print || 0,
+                    copy: row.daily_copy || 0,
+                    fax: row.daily_fax || 0,
+                    total: dailyTotal,
+                };
+
+                // 初始化年份
+                if (!printer.history[year]) {
+                    printer.history[year] = {};
+                }
+                // 初始化月份
+                if (!printer.history[year][month]) {
+                    printer.history[year][month] = {
+                        month: month,
+                        month_metrics: { print: 0, copy: 0, fax: 0, total: 0 },
+                        daily_logs: [],
+                    };
+                }
+
+                const monthData = printer.history[year][month];
+                monthData.daily_logs.push({ date: dateStr, metrics: dailyMetrics });
+                monthData.month_metrics.print += dailyMetrics.print;
+                monthData.month_metrics.copy += dailyMetrics.copy;
+                monthData.month_metrics.fax += dailyMetrics.fax;
+                monthData.month_metrics.total += dailyMetrics.total;
+
+                // 記錄最後一筆（用於 today）
+                printer._lastMetrics = dailyMetrics;
+            }
+
+            // 組裝成最終格式
+            const printers = Object.values(printerMap).map(p => {
+                const historyArr = Object.keys(p.history).sort().reverse().map(year => {
+                    const monthsMap = p.history[year];
+                    const monthsArr = Object.keys(monthsMap).sort().map(m => monthsMap[m]);
+                    const yearTotal = { print: 0, copy: 0, fax: 0, total: 0 };
+                    monthsArr.forEach(md => {
+                        yearTotal.print += md.month_metrics.print;
+                        yearTotal.copy += md.month_metrics.copy;
+                        yearTotal.fax += md.month_metrics.fax;
+                        yearTotal.total += md.month_metrics.total;
+                    });
+                    return { year, year_total: yearTotal, months: monthsArr };
+                });
+
+                return {
+                    ip: p.ip,
+                    location: p.location,
+                    model: p.model,
+                    today: p._lastMetrics || { print: 0, copy: 0, fax: 0, total: 0 },
+                    history: historyArr,
+                };
+            });
+
+            return { generated_at: latestDate, printers };
+        }
 
         async function init() {
             try {
-                const res = await fetch('data.json');
-                rawData = await res.json();
+                const rows = await fetchFromSupabase();
+                rawData = transformData(rows);
                 document.getElementById('today-date-display').innerText = rawData.generated_at;
 
                 const years = new Set();
