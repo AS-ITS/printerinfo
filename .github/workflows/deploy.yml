@@ -42,7 +42,7 @@ jobs:
 
       - name: Build Project Artifacts
         # 加入 --prod 參數，這會在 Actions 環境內完成打包
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
 
       - name: Deploy Project Artifacts to Vercel
         # 使用 --prebuilt 參數，直接將剛才打包好的成果送上 Vercel，不進行雲端編譯
