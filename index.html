@@ -138,7 +138,7 @@
         async function init() {
             try {
                 // 直接讀取同目錄下的 data.json
-                const res = await fetch('./data.json');
+                const res = await fetch('./public/data.json');
                 if (!res.ok) throw new Error("無法讀取 data.json。請確認 GitHub Action 執行成功。");
 
                 const dbRows = await res.json();
