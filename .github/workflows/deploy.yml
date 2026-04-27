@@ -29,6 +29,7 @@ jobs:
           cd scripts
           go mod tidy
           go run gen_data.go
+          ls -R public/  # 檢查 data.json 是否真的在裡面
         env:
           SUPABASE_DB_CONNECTION: ${{ secrets.SUPABASE_DB_CONNECTION }}
 
