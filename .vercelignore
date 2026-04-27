@@ -1,0 +1,5 @@
+# 忽略所有 Go 檔案，不讓 Vercel 嘗試編譯它們
+*.go
+scripts/
+go.mod
+go.sum
