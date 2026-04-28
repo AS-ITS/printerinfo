@@ -11,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// 定義與前端 index.html 格式對齊的結構
+// 每日統計行（來自 daily_stats 視圖）
 type DailyRow struct {
 	IPAddress  string `json:"ip_address"`
 	Location   string `json:"location"`
@@ -29,6 +29,51 @@ type DailyRow struct {
 	DailyFax   int    `json:"daily_fax"`
 }
 
+// 耗材狀態
+type Supply struct {
+	Type   int `json:"type"`
+	Percent int `json:"percent"`
+}
+
+// 故障紀錄
+type Incident struct {
+	ErrorCode    string `json:"error_code"`
+	Description  string `json:"description"`
+	IncidentDate string `json:"incident_date"`
+	DowntimeMin  int    `json:"downtime_minutes"`
+}
+
+// 儀表板印表機（單一物件，供前端直接使用）
+type DashboardPrinter struct {
+	ID         int     `json:"id"`
+	IPAddress  string  `json:"ip_address"`
+	Location   string  `json:"location"`
+	Model      string  `json:"model"`
+	PrinterState    string `json:"printer_status"`
+	TonerPercent    int    `json:"toner_percent"`
+	InkPercent      int    `json:"ink_percent"`
+	PaperPercent    int    `json:"paper_percent"`
+	Supplies        []Supply `json:"supplies"`
+	WarrantyDays    int    `json:"warranty_days"`
+	RecentIncidents int    `json:"recent_incidents_30d"`
+	Trend      []DailyRow `json:"trend"`
+	HistoryLogs []DailyRow `json:"history_logs"`
+	Incidents  []Incident  `json:"incidents"`
+	TotalCount  int       `json:"total_all_time"`
+}
+
+// 整體儀表板回應
+type DashboardResponse struct {
+	Summary struct {
+		TotalPrinters   int `json:"total_printers"`
+		NormalCount     int `json:"normal_count"`
+		WarningCount    int `json:"warning_count"`
+		ErrorCount      int `json:"error_count"`
+		SupplyWarningCount int `json:"supply_warning_count"`
+	} `json:"summary"`
+	Printers []DashboardPrinter `json:"printers"`
+}
+
 func main() {
 	// 1. 從環境變數獲取連線字串
 	connStr := os.Getenv("SUPABASE_DB_CONNECTION")
@@ -43,43 +88,153 @@ func main() {
 	}
 	defer db.Close()
 
-	// 3. 查詢我們之前建立的視圖
-	// 查詢更新後的 daily_stats 視圖
-	rows, err := db.Query(`
-		SELECT 
-			ip_address, location, model, recorded_at::text, 
+	// 3. 查詢 daily_stats 視圖（歷史趨勢）
+	trendRows, err := db.Query(`
+		SELECT
+			ip_address, recorded_at::text,
 			total_count, print_count, copy_count, scan_total, fax_count,
 			daily_total, daily_print, daily_copy, daily_scan, daily_fax
 		FROM daily_stats
 		ORDER BY recorded_at DESC
 	`)
 	if err != nil {
-		log.Fatal("查詢失敗:", err)
+		log.Fatal("趨勢查詢失敗:", err)
 	}
-	defer rows.Close()
 
-	var results []DailyRow
-	for rows.Next() {
+	// 按 IP 分組趨勢資料
+	trendMap := make(map[string][]DailyRow)
+	for trendRows.Next() {
 		var r DailyRow
-		err := rows.Scan(
-			&r.IPAddress, &r.Location, &r.Model, &r.RecordedAt,
+		err := trendRows.Scan(
+			&r.IPAddress, &r.RecordedAt,
 			&r.TotalCount, &r.PrintCount, &r.CopyCount, &r.ScanTotal, &r.FaxCount,
 			&r.DailyTotal, &r.DailyPrint, &r.DailyCopy, &r.DailyScan, &r.DailyFax,
 		)
 		if err != nil {
-			log.Fatal("讀取資料失敗:", err)
+			log.Fatal("趨勢讀取失敗:", err)
 		}
-		results = append(results, r)
+		trendMap[r.IPAddress] = append(trendMap[r.IPAddress], r)
+	}
+	trendRows.Close()
+
+	// 4. 查詢 dashboard_stats 視圖（當前狀態）
+	dashRows, err := db.Query(`
+		SELECT id, ip_address, location, model, printer_status,
+		       toner_percent, ink_percent, paper_percent, warranty_days, recent_incidents_30d
+		FROM dashboard_stats
+		ORDER BY ip_address
+	`)
+	if err != nil {
+		log.Fatal("儀表板查詢失敗:", err)
 	}
 
-	// 4. 將資料包裝成前端預期的格式
-	// 我們直接輸出這組陣列，由前端 index.html 中的 transformData 處理
-	jsonData, err := json.MarshalIndent(results, "", "  ")
+	// 查詢耗材詳細資料
+	supplyRows, err := db.Query(`SELECT printer_id, supply_type, remaining_percent FROM supplies`)
+	if err != nil {
+		log.Fatal("耗材查詢失敗:", err)
+	}
+
+	// 查詢近期故障紀錄
+	incidentRows, err := db.Query(`
+		SELECT printer_id, error_code, description, incident_date::text, downtime_minutes
+		FROM incidents
+		WHERE incident_date >= CURRENT_DATE - INTERVAL '30 days'
+		ORDER BY incident_date DESC
+	`)
+	if err != nil {
+		log.Fatal("故障紀錄查詢失敗:", err)
+	}
+
+	// 將 supplyRows 轉換為 map
+	supplyMap := make(map[int][]Supply)
+	for supplyRows.Next() {
+		var printerID int
+		var supplyType string
+		var remainingPercent int
+		err := supplyRows.Scan(&printerID, &supplyType, &remainingPercent)
+		if err != nil {
+			log.Fatal("耗材讀取失敗:", err)
+		}
+		supplyMap[printerID] = append(supplyMap[printerID], Supply{
+			Type:    supplyTypeToInt(supplyType),
+			Percent: remainingPercent,
+		})
+	}
+	supplyRows.Close()
+
+	// 將 incidentRows 轉換為 map
+	incidentMap := make(map[int][]Incident)
+	for incidentRows.Next() {
+		var printerID int
+		var inc Incident
+		err := incidentRows.Scan(&printerID, &inc.ErrorCode, &inc.Description, &inc.IncidentDate, &inc.DowntimeMin)
+		if err != nil {
+			log.Fatal("故障紀錄讀取失敗:", err)
+		}
+		incidentMap[printerID] = append(incidentMap[printerID], inc)
+	}
+	incidentRows.Close()
+
+	// 組合最終儀表板資料
+	response := DashboardResponse{}
+	var seenIPs map[string]bool
+	response.Printers = make([]DashboardPrinter, 0)
+	seenIPs = make(map[string]bool)
+
+	for dashRows.Next() {
+		var dp DashboardPrinter
+		err := dashRows.Scan(
+			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.PrinterState,
+			&dp.TonerPercent, &dp.InkPercent, &dp.PaperPercent,
+			&dp.WarrantyDays, &dp.RecentIncidents,
+		)
+		if err != nil {
+			log.Fatal("儀表板讀取失敗:", err)
+		}
+
+		dp.Supplies = supplyMap[dp.ID]
+		dp.Incidents = incidentMap[dp.ID]
+		dp.Trend = trendMap[dp.IPAddress]
+
+		// 從趨勢資料計算 total_all_time
+		dp.TotalCount = 0
+		if len(dp.Trend) > 0 {
+			dp.TotalCount = dp.Trend[len(dp.Trend)-1].TotalCount
+		}
+
+		// 去重（dashboard 和趨勢可能有重疊的 IP）
+		if !seenIPs[dp.IPAddress] {
+			seenIPs[dp.IPAddress] = true
+			response.Printers = append(response.Printers, dp)
+		}
+	}
+	dashRows.Close()
+
+	// 統計概況
+	response.Summary.TotalPrinters = len(response.Printers)
+	for _, p := range response.Printers {
+		switch p.PrinterState {
+		case "warning":
+			response.Summary.WarningCount++
+		case "error":
+			response.Summary.ErrorCount++
+		default:
+			response.Summary.NormalCount++
+		}
+		for _, s := range p.Supplies {
+			if s.Percent < 15 {
+				response.Summary.SupplyWarningCount++
+			}
+		}
+	}
+
+	// 將資料寫入 JSON
+	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		log.Fatal("JSON 轉換失敗:", err)
 	}
 
-	// 5. 確保輸出目錄存在並寫入檔案
+	// 確保輸出目錄存在並寫入檔案
 	err = os.MkdirAll("public", 0755)
 	if err != nil {
 		log.Fatal(err)
@@ -90,6 +245,19 @@ func main() {
 		log.Fatal("檔案寫入失敗:", err)
 	}
 
-	fmt.Printf("成功！已從 Supabase 擷取 %d 筆紀錄並儲存至 public/data.json\n", len(results))
+	fmt.Printf("成功！已從 Supabase 擷取 %d 台印表機資料並儲存至 public/data.json\n", len(response.Printers))
 	fmt.Println("產生時間:", time.Now().Format("2006-01-02 15:04:05"))
+}
+
+func supplyTypeToInt(t string) int {
+	switch t {
+	case "toner":
+		return 0
+	case "ink":
+		return 1
+	case "paper":
+		return 2
+	default:
+		return 3
+	}
 }

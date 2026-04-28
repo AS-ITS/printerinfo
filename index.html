@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Printer Operations Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
@@ -28,6 +29,37 @@
             border-color: rgba(99, 102, 241, 0.4);
         }
 
+        /* 狀態指示燈 */
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-normal .status-dot { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-warning .status-dot { background: #eab308; box-shadow: 0 0 8px #eab308; }
+        .status-error .status-dot { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+
+        /* 耗材進度條 */
+        .supply-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .supply-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
         /* 滾動條美化 */
         ::-webkit-scrollbar {
             width: 8px;
@@ -41,12 +73,35 @@
             background: rgba(99, 102, 241, 0.5);
             border-radius: 10px;
         }
+
+        /* 概況條 */
+        .summary-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: background 0.2s;
+        }
+
+        .summary-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        /* 耗材警告卡片 */
+        .supply-warning-card {
+            border-left: 3px solid;
+        }
+
+        /* 趨勢圖容器 */
+        .chart-container {
+            position: relative;
+            height: 220px;
+            width: 100%;
+        }
     </style>
 </head>
 
 <body class="p-8">
     <div class="max-w-7xl mx-auto">
-        <header class="mb-12 flex justify-between items-end">
+        <header class="mb-8 flex justify-between items-end">
             <div>
                 <h1 class="text-5xl font-extrabold tracking-tighter mb-2">OPERATIONS<span
                         class="text-indigo-500">CENTER</span></h1>
@@ -55,10 +110,53 @@
             <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
         </header>
 
-        <div id="printer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 概況條 -->
+        <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        </div>
+
+        <!-- 每日趨勢圖 -->
+        <div id="trend-section" class="glass-panel rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-bold mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M12 17h.01"></path>
+                </svg>
+                全院每日總印量趨勢
+            </h3>
+            <div class="chart-container">
+                <canvas id="trend-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- 耗材警告列表 -->
+        <div id="supply-warnings" class="mb-8 hidden">
+            <h3 class="text-lg font-bold mb-4 flex items-center text-amber-400">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                耗材警告
+            </h3>
+            <div id="supply-warnings-list" class="space-y-2">
+            </div>
+        </div>
+
+        <!-- 印表機卡片網格 -->
+        <div id="printer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        </div>
+
+        <!-- 近期故障記錄 -->
+        <div id="incidents-section" class="glass-panel rounded-2xl p-6 mb-8 hidden">
+            <h3 class="text-lg font-bold mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                近期故障記錄（30 天）
+            </h3>
+            <div id="incidents-list" class="space-y-2">
+            </div>
         </div>
     </div>
 
+    <!-- 歷史彈窗 -->
     <div id="history-modal"
         class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
         <div class="glass-panel w-full max-w-4xl max-h-[80vh] rounded-[2.5rem] overflow-hidden flex flex-col">
@@ -80,85 +178,276 @@
         async function init() {
             try {
                 const response = await fetch('./public/data.json');
-                const rawData = await response.json();
+                const dashboardData = await response.json();
                 document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
 
-                cachedPrinters = transformData(rawData);
+                cachedPrinters = dashboardData.printers;
+                renderSummary(dashboardData.summary);
+                renderTrendChart(dashboardData.printers);
                 renderPrinters(cachedPrinters);
+                renderSupplyWarnings(dashboardData.printers);
+                renderIncidents(dashboardData.printers);
             } catch (e) {
                 console.error("載入失敗:", e);
             }
         }
 
-        function transformData(rawData) {
-            const groups = {};
-            rawData.forEach(row => {
-                const ip = row.ip_address;
-                if (!groups[ip]) {
-                    groups[ip] = {
-                        ip, location: row.location, model: row.model,
-                        total_all_time: row.total_count,
-                        daily_logs: [],
-                        yearly_stats: {} // 用於彙總每年/每月的量
-                    };
-                }
-
-                // 處理增量邏輯 (修正版)
-                let p = row.daily_print, c = row.daily_copy, f = row.daily_fax, t = row.daily_total;
-                if (p === 0 && c === 0 && f === 0 && t > 0) p = t;
-
-                const dateObj = new Date(row.recorded_at);
-                const year = dateObj.getFullYear();
-                const month = dateObj.getMonth() + 1;
-
-                // 累計年度/月份數據
-                if (!groups[ip].yearly_stats[year]) groups[ip].yearly_stats[year] = { total: 0, months: {} };
-                if (!groups[ip].yearly_stats[year].months[month]) groups[ip].yearly_stats[year].months[month] = 0;
-
-                groups[ip].yearly_stats[year].total += t;
-                groups[ip].yearly_stats[year].months[month] += t;
-
-                groups[ip].daily_logs.push({ date: row.recorded_at, metrics: { print: p, copy: c, fax: f, total: t } });
-            });
-            return Object.values(groups);
+        // 概況條渲染
+        function renderSummary(s) {
+            const bar = document.getElementById('summary-bar');
+            bar.innerHTML = `
+                <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-white">${s.total_printers}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">印表機總數</p>
+                </div>
+                <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-green-400">${s.normal_count}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">正常</p>
+                </div>
+                <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-amber-400">${s.warning_count}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">警告</p>
+                </div>
+                <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-red-400">${s.error_count}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">錯誤</p>
+                </div>
+                <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-indigo-400">${s.supply_warning_count}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">耗材警告</p>
+                </div>
+            `;
         }
 
+        // 趨勢圖渲染
+        function renderTrendChart(printers) {
+            const dateMap = {};
+            printers.forEach(p => {
+                (p.trend || []).forEach(row => {
+                    const d = row.recorded_at.substring(0, 10);
+                    dateMap[d] = (dateMap[d] || 0) + (row.daily_total || 0);
+                });
+            });
+
+            const sortedDates = Object.keys(dateMap).sort();
+            const ctx = document.getElementById('trend-chart').getContext('2d');
+
+            if (sortedDates.length === 0) return;
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: '每日總印量',
+                        data: sortedDates.map(d => dateMap[d]),
+                        borderColor: '#818cf8',
+                        backgroundColor: 'rgba(129, 140, 248, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: sortedDates.length > 30 ? 0 : 3,
+                        pointHoverRadius: 5,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', maxTicksLimit: 10, font: { family: 'Plus Jakarta Sans' } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', font: { family: 'Plus Jakarta Sans' } },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 耗材警告渲染
+        function renderSupplyWarnings(printers) {
+            const warnings = [];
+            printers.forEach(p => {
+                (p.supplies || []).forEach(s => {
+                    if (s.percent < 15) {
+                        const typeNames = { 0: '碳粉', 1: '墨水', 2: '紙張' };
+                        warnings.push({
+                            printer: p.location,
+                            ip: p.ip_address,
+                            type: typeNames[s.type] || s.type,
+                            percent: s.percent
+                        });
+                    }
+                });
+            });
+
+            const container = document.getElementById('supply-warnings');
+            const list = document.getElementById('supply-warnings-list');
+            if (warnings.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            list.innerHTML = warnings.map(w => `
+                <div class="supply-warning-card bg-amber-500/10 border-amber-500 rounded-r-xl p-3 flex justify-between items-center">
+                    <div>
+                        <span class="font-bold text-amber-300">${w.printer} (${w.ip})</span>
+                        <span class="text-amber-400 ml-2">${w.type}剩餘</span>
+                    </div>
+                    <span class="text-amber-400 font-mono font-bold">${w.percent}%</span>
+                </div>
+            `).join('');
+        }
+
+        // 故障記錄渲染
+        function renderIncidents(printers) {
+            const allIncidents = [];
+            printers.forEach(p => {
+                (p.incidents || []).forEach(inc => {
+                    allIncidents.push({ ...inc, printer: p.location, ip: p.ip_address });
+                });
+            });
+
+            const container = document.getElementById('incidents-section');
+            const list = document.getElementById('incidents-list');
+            if (allIncidents.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            list.innerHTML = allIncidents.map(inc => `
+                <div class="bg-white/5 rounded-xl p-3 flex justify-between items-center">
+                    <div>
+                        <span class="font-bold text-white">${inc.printer}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${inc.ip}</span>
+                        <span class="text-red-400 ml-2 font-mono text-sm">${inc.error_code || 'Unknown'}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${inc.description || ''}</span>
+                    </div>
+                    <div class="text-right text-slate-500 text-sm">
+                        <div>${inc.incident_date || ''}</div>
+                        ${inc.downtime_minutes ? `<div class="text-red-400">${inc.downtime_minutes} 分鐘</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 印表機卡片渲染
         function renderPrinters(printers) {
             const grid = document.getElementById('printer-grid');
             grid.innerHTML = printers.map((p, idx) => {
-                const latest = p.daily_logs[0]?.metrics || { print: 0, copy: 0, fax: 0, total: 0 };
+                const latest = (p.trend || [])[0]?.metrics || { print: 0, copy: 0, fax: 0, total: 0 };
+                const statusClass = p.printer_status === 'warning' ? 'status-warning' :
+                    p.printer_status === 'error' ? 'status-error' : 'status-normal';
+                const statusText = p.printer_status === 'warning' ? '警告' :
+                    p.printer_status === 'error' ? '錯誤' : '正常';
+
+                const warrantyClass = p.warranty_days > 90 ? 'text-green-400' :
+                    p.warranty_days > 30 ? 'text-amber-400' : 'text-red-400';
+                const warrantyText = p.warranty_days > 0 ? `${p.warranty_days} 天` : '已過期';
+
                 return `
-                    <div class="glass-panel p-8 rounded-[2rem] transition-all duration-500 card-hover flex flex-col h-full">
-                        <div class="flex justify-between items-start mb-6">
+                    <div class="glass-panel p-6 rounded-2xl transition-all duration-500 card-hover flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex items-center gap-2">
+                                <div class="status-dot ${statusClass}"></div>
+                                <h3 class="text-xl font-black text-white">${p.location}</h3>
+                            </div>
+                            <span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-xs font-bold">${p.model}</span>
+                        </div>
+                        <p class="text-indigo-400 font-mono text-xs mb-4">${p.ip_address}</p>
+
+                        <!-- 耗材狀態 -->
+                        <div class="space-y-2 mb-4">
                             <div>
-                                <h3 class="text-2xl font-black text-white">${p.location}</h3>
-                                <p class="text-indigo-400 font-mono text-sm font-bold mt-1">${p.ip}</p>
+                                <div class="flex justify-between text-xs mb-0.5">
+                                    <span class="text-slate-400">碳粉</span>
+                                    <span class="text-slate-400 font-mono">${getSupplyPercent(p, 'toner')}%</span>
+                                </div>
+                                <div class="supply-bar">
+                                    <div class="supply-bar-fill" style="width:${getSupplyPercent(p, 'toner')}%;background:${getSupplyColor(getSupplyPercent(p, 'toner'))}"></div>
+                                </div>
                             </div>
-                            <span class="bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-xs font-bold">${p.model}</span>
+                            <div>
+                                <div class="flex justify-between text-xs mb-0.5">
+                                    <span class="text-slate-400">墨水</span>
+                                    <span class="text-slate-400 font-mono">${getSupplyPercent(p, 'ink')}%</span>
+                                </div>
+                                <div class="supply-bar">
+                                    <div class="supply-bar-fill" style="width:${getSupplyPercent(p, 'ink')}%;background:${getSupplyColor(getSupplyPercent(p, 'ink'))}"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-0.5">
+                                    <span class="text-slate-400">紙張</span>
+                                    <span class="text-slate-400 font-mono">${getSupplyPercent(p, 'paper')}%</span>
+                                </div>
+                                <div class="supply-bar">
+                                    <div class="supply-bar-fill" style="width:${getSupplyPercent(p, 'paper')}%;background:${getSupplyColor(getSupplyPercent(p, 'paper'))}"></div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="space-y-3 mb-6 flex-grow">
-                            ${renderRow("今日列印", latest.print, "indigo")}
-                            ${renderRow("今日影印", latest.copy, "emerald")}
-                            ${renderRow("今日總計", latest.total, "white", "text-xl font-black")}
+                        <!-- 今日用量 -->
+                        <div class="space-y-2 mb-4">
+                            ${renderRow("今日列印", p.daily_print, "indigo")}
+                            ${renderRow("今日影印", p.daily_copy, "emerald")}
+                            ${renderRow("今日總計", p.daily_total, "white", "text-xl font-black")}
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <button onclick="showHistory(${idx})" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-left transition-colors">
-                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">查看歷史數據</p>
-                                <p class="text-lg font-bold text-indigo-300 underline decoration-indigo-500/50">History Logs</p>
-                            </button>
-                            <div class="bg-white/5 p-4 rounded-2xl">
+                        <!-- 保固 & 累計 -->
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="bg-white/5 p-3 rounded-xl">
+                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">保固倒數</p>
+                                <p class="text-base font-black ${warrantyClass}">${warrantyText}</p>
+                            </div>
+                            <div class="bg-white/5 p-3 rounded-xl">
                                 <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">累計總印量</p>
-                                <p class="text-lg font-bold text-slate-200">${p.total_all_time.toLocaleString()}</p>
+                                <p class="text-base font-black text-slate-200">${(p.total_all_time || 0).toLocaleString()}</p>
                             </div>
+                        </div>
+
+                        <!-- 按鈕 -->
+                        <div class="grid grid-cols-2 gap-3 mt-auto">
+                            <button onclick="showHistory(${idx})" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-left transition-colors">
+                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">查看歷史數據</p>
+                                <p class="text-sm font-bold text-indigo-300">History Logs</p>
+                            </button>
+                            <button onclick="showSupplyMonitor(${idx})" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-left transition-colors">
+                                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">耗材監測</p>
+                                <p class="text-sm font-bold text-emerald-300">Supplies</p>
+                            </button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
+        // 輔助函數
+        function getSupplyPercent(p, type) {
+            const supply = (p.supplies || []).find(s => s.type === type);
+            return supply ? supply.percent : 100;
+        }
+
+        function getSupplyColor(percent) {
+            if (percent <= 15) return '#ef4444';
+            if (percent <= 50) return '#eab308';
+            return '#22c55e';
+        }
+
         function renderRow(label, value, color, extraClass = "") {
+            if (value === undefined || value === null) value = 0;
             return `
                 <div class="flex justify-between items-center">
                     <span class="text-slate-400 font-medium">${label}</span>
@@ -167,13 +456,43 @@
             `;
         }
 
-        // 歷史彈窗邏輯
+        // 歷史彈窗
         function showHistory(index) {
             const p = cachedPrinters[index];
-            document.getElementById('modal-subtitle').innerText = `${p.location} (${p.ip})`;
+            document.getElementById('modal-title').innerText = `${p.location} 歷史數據統計`;
+            document.getElementById('modal-subtitle').innerText = `${p.ip_address} (${p.model})`;
+
+            // 支援舊格式 (yearly_stats) 和新格式 (trend/history_logs)
+            let yearlyStats = p.yearly_stats;
+            let logs = p.history_logs || p.trend || [];
+
+            // 若無 yearly_stats，從 trend 動態計算
+            if (!yearlyStats && logs.length > 0) {
+                yearlyStats = {};
+                logs.forEach(l => {
+                    const date = new Date(l.recorded_at || l.recorded_at);
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    const total = l.daily_total || l.total || 0;
+                    if (!yearlyStats[year]) yearlyStats[year] = { total: 0, months: {} };
+                    yearlyStats[year].total += total;
+                    yearlyStats[year].months[month] = (yearlyStats[year].months[month] || 0) + total;
+                });
+            }
+
+            const dates = logs.map(l => l.recorded_at?.substring(0, 10) || l.recorded_at);
+            const totals = logs.map(l => l.daily_total || l.total || 0);
 
             let html = `
                 <div class="space-y-8">
+                    <section>
+                        <h4 class="text-indigo-400 font-bold mb-4 flex items-center">
+                            <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> 每日印量趨勢
+                        </h4>
+                        <div style="height:180px;">
+                            <canvas id="modal-chart"></canvas>
+                        </div>
+                    </section>
                     <section>
                         <h4 class="text-indigo-400 font-bold mb-4 flex items-center">
                             <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> 年度與月份統計
@@ -186,11 +505,9 @@
                                 </tr>
                             </thead>
                             <tbody class="text-sm">
-                                ${Object.keys(p.yearly_stats).sort((a, b) => b - a).map(year => {
-                const yearData = p.yearly_stats[year];
+                                ${Object.keys(yearlyStats || {}).sort((a, b) => b - a).map(year => {
+                const yearData = yearlyStats[year];
                 let rows = `<tr class="border-b border-white/5 bg-indigo-500/5"><td class="py-3 font-black text-white">${year} 年總計</td><td class="py-3 text-right font-black text-indigo-400">${yearData.total.toLocaleString()}</td></tr>`;
-
-                // 月份細項
                 Object.keys(yearData.months).sort((a, b) => b - a).forEach(month => {
                     rows += `<tr class="border-b border-white/5"><td class="py-2 pl-4 text-slate-400">${month} 月</td><td class="py-2 text-right text-slate-300">${yearData.months[month].toLocaleString()}</td></tr>`;
                 });
@@ -202,6 +519,75 @@
                 </div>
             `;
 
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('history-modal').classList.remove('hidden');
+
+            // 渲染彈窗趨勢圖
+            if (dates.length > 0 && typeof Chart !== 'undefined') {
+                new Chart(document.getElementById('modal-chart'), {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: '每日印量',
+                            data: totals,
+                            backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 15, font: { size: 10 } } },
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+
+        // 耗材監測彈窗
+        function showSupplyMonitor(index) {
+            const p = cachedPrinters[index];
+            const supplies = p.supplies || [];
+
+            let html = `
+                <div class="space-y-6">
+                    <h4 class="text-indigo-400 font-bold flex items-center">
+                        <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> ${p.location} 耗材狀態
+                    </h4>
+                    <div class="space-y-4">
+            `;
+
+            const typeNames = { 0: '碳粉 (Toner)', 1: '墨水 (Ink)', 2: '紙張 (Paper)' };
+            const typeColors = { 0: '#6366f1', 1: '#f59e0b', 2: '#94a3b8' };
+
+            supplies.forEach(s => {
+                const color = getSupplyColor(s.percent);
+                html += `
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-white font-bold">${typeNames[s.type] || s.type}</span>
+                            <span class="font-mono font-black text-xl" style="color:${color}">${s.percent}%</span>
+                        </div>
+                        <div class="supply-bar" style="height:12px">
+                            <div class="supply-bar-fill" style="width:${s.percent}%;background:${color}"></div>
+                        </div>
+                        ${s.percent < 15 ? `<p class="text-red-400 text-sm mt-1">⚠️ 建議立即更換</p>` :
+                        s.percent < 50 ? `<p class="text-amber-400 text-sm mt-1">⚠️ 預估 ${Math.ceil(s.percent / 5)} 天內耗盡</p>` :
+                            `<p class="text-green-400 text-sm mt-1">✓ 供應充足</p>`}
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+
+            document.getElementById('modal-title').innerText = `${p.location} 耗材監測`;
+            document.getElementById('modal-subtitle').innerText = `${p.ip_address} (${p.model})`;
             document.getElementById('modal-content').innerHTML = html;
             document.getElementById('history-modal').classList.remove('hidden');
         }
