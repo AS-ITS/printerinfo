@@ -111,7 +111,7 @@
         </header>
 
         <!-- 概況條 -->
-        <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         </div>
 
         <!-- 每日趨勢圖 -->
@@ -120,7 +120,7 @@
                 <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M12 17h.01"></path>
                 </svg>
-                全院每日總印量趨勢
+                每日總印量趨勢
             </h3>
             <div class="chart-container">
                 <canvas id="trend-chart"></canvas>
@@ -197,23 +197,15 @@
             const bar = document.getElementById('summary-bar');
             bar.innerHTML = `
                 <div class="summary-card rounded-xl p-4 text-center">
+                    <p class="text-3xl font-black text-indigo-400">${(s.today_total || 0).toLocaleString()}</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">今日總印量</p>
+                </div>
+                <div class="summary-card rounded-xl p-4 text-center">
                     <p class="text-3xl font-black text-white">${s.total_printers}</p>
                     <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">印表機總數</p>
                 </div>
                 <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-green-400">${s.normal_count}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">正常</p>
-                </div>
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-amber-400">${s.warning_count}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">警告</p>
-                </div>
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-red-400">${s.error_count}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">錯誤</p>
-                </div>
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-indigo-400">${s.supply_warning_count}</p>
+                    <p class="text-3xl font-black text-amber-400">${s.supply_warning_count}</p>
                     <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">耗材警告</p>
                 </div>
             `;

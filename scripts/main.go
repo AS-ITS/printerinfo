@@ -65,10 +65,8 @@ type DashboardPrinter struct {
 // 整體儀表板回應
 type DashboardResponse struct {
 	Summary struct {
-		TotalPrinters   int `json:"total_printers"`
-		NormalCount     int `json:"normal_count"`
-		WarningCount    int `json:"warning_count"`
-		ErrorCount      int `json:"error_count"`
+		TotalPrinters      int `json:"total_printers"`
+		TodayTotal         int `json:"today_total"`
 		SupplyWarningCount int `json:"supply_warning_count"`
 	} `json:"summary"`
 	Printers []DashboardPrinter `json:"printers"`
@@ -213,18 +211,14 @@ func main() {
 	// 統計概況
 	response.Summary.TotalPrinters = len(response.Printers)
 	for _, p := range response.Printers {
-		switch p.PrinterState {
-		case "warning":
-			response.Summary.WarningCount++
-		case "error":
-			response.Summary.ErrorCount++
-		default:
-			response.Summary.NormalCount++
-		}
 		for _, s := range p.Supplies {
 			if s.Percent < 15 {
 				response.Summary.SupplyWarningCount++
 			}
+		}
+		// 從最新一筆趨勢取得今日印量
+		if len(p.Trend) > 0 {
+			response.Summary.TodayTotal += p.Trend[0].DailyPrint
 		}
 	}
 
