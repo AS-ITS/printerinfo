@@ -663,7 +663,11 @@
 
             // 插入到 header 的 last-update 之前
             const lastUpdateEl = document.getElementById('last-update');
-            header.insertBefore(btn, lastUpdateEl);
+            if (lastUpdateEl?.parentElement) {
+                header.insertBefore(btn, lastUpdateEl.parentElement);
+            } else {
+                header.appendChild(btn);
+            }
         }
 
         async function handleSignOut() {
