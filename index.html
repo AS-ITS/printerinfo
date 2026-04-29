@@ -237,6 +237,8 @@
         }
 
         // == 趨勢圖渲染 ==
+        let trendChartInstance = null;
+
         function renderTrendChart(printers) {
             const dateMap = {};
             printers.forEach(p => {
@@ -251,7 +253,13 @@
 
             if (sortedDates.length === 0) return;
 
-            new Chart(ctx, {
+            // 銷毀舊圖表實例
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+                trendChartInstance = null;
+            }
+
+            trendChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: sortedDates,
