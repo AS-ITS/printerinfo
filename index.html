@@ -618,14 +618,14 @@
         // Supabase 設定（請替換為你的專案資訊）
         const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function handleGoogleLogin() {
             const btn = document.getElementById('google-login-btn');
             btn.disabled = true;
             btn.innerHTML = '登入中...';
 
-            const { data, error } = await supabase.auth.signInWithOAuth({
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: window.location.origin + window.location.pathname
@@ -667,13 +667,13 @@
         }
 
         async function handleSignOut() {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             window.location.reload();
         }
 
         // == 初始化（檢查登入狀態） ==
         async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
 
             if (session) {
                 currentUser = session.user;
@@ -684,7 +684,7 @@
             }
 
             // 監聽登入狀態變化（例如登入後跳回）
-            supabase.auth.onAuthStateChange((_event, session) => {
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
                 if (session) {
                     currentUser = session.user;
                     setAuthState(true);
