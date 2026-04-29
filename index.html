@@ -664,7 +664,11 @@
             // 插入到 header 的 last-update 之前
             const lastUpdateEl = document.getElementById('last-update');
             if (lastUpdateEl?.parentElement) {
-                header.insertBefore(btn, lastUpdateEl.parentElement);
+                try {
+                    header.insertBefore(btn, lastUpdateEl.parentElement);
+                } catch {
+                    header.appendChild(btn);
+                }
             } else {
                 header.appendChild(btn);
             }
