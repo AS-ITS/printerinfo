@@ -163,6 +163,13 @@
             </div>
         </div>
 
+        <!-- 單位篩選 -->
+        <div id="unit-filter-section" class="glass-panel rounded-2xl p-4 mb-6 hidden">
+            <p class="text-xs text-slate-400 uppercase tracking-wider mb-3 font-bold">依單位篩選</p>
+            <div id="unit-filter-buttons" class="flex flex-wrap gap-2">
+            </div>
+        </div>
+
         <!-- 印表機卡片網格 -->
         <div id="printer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         </div>
@@ -211,6 +218,7 @@
                     renderPrinters(cachedPrinters);
                     renderSupplyWarnings(dashboardData.printers);
                     renderIncidents(dashboardData.printers);
+                    renderUnitFilter(dashboardData.printers);
                 })
                 .catch(e => {
                     console.error("載入失敗:", e);
@@ -309,6 +317,28 @@
             });
         }
 
+        // == 單位篩選 ==
+        let currentFilterUnit = 'all';
+
+        function renderUnitFilter(printers) {
+            const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
+            if (units.length === 0) return;
+
+            const section = document.getElementById('unit-filter-section');
+            const buttons = document.getElementById('unit-filter-buttons');
+            section.classList.remove('hidden');
+
+            buttons.innerHTML = `<button onclick="filterByUnit('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${currentFilterUnit === 'all' ? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}">全部</button>` +
+                units.map(u => `<button onclick="filterByUnit('${u}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${currentFilterUnit === u ? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}">${u}</button>`).join('');
+        }
+
+        function filterByUnit(unit) {
+            currentFilterUnit = unit;
+            const filtered = unit === 'all' ? cachedPrinters : cachedPrinters.filter(p => p.unit === unit);
+            renderPrinters(filtered);
+            renderUnitFilter(cachedPrinters);
+        }
+
         // == 耗材警告渲染 ==
         function renderSupplyWarnings(printers) {
             const warnings = [];
@@ -399,7 +429,7 @@
                             </div>
                             <span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-xs font-bold">${p.model}</span>
                         </div>
-                        <p class="text-indigo-400 font-mono text-xs mb-4">${p.ip_address}</p>
+                        <p class="text-indigo-400 font-mono text-xs mb-4"><span class="text-slate-400">${p.unit || ''}${p.unit ? ' ' : ''}</span>${p.ip_address}</p>
 
                         <!-- 耗材狀態 -->
                         <div class="space-y-2 mb-4">
