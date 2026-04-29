@@ -151,6 +151,19 @@
             </div>
         </div>
 
+        <!-- 單位列印狀況 -->
+        <div id="unit-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
+            <h3 class="text-lg font-bold mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-4z"></path>
+                </svg>
+                依單位列印狀況
+            </h3>
+            <div class="chart-container">
+                <canvas id="unit-chart"></canvas>
+            </div>
+        </div>
+
         <!-- 耗材警告列表 -->
         <div id="supply-warnings" class="mb-8 hidden">
             <h3 class="text-lg font-bold mb-4 flex items-center text-amber-400">
@@ -235,6 +248,7 @@
                     cachedPrinters = dashboardData.printers;
                     renderSummary(dashboardData.summary);
                     renderTrendChart(dashboardData.printers);
+                    renderUnitChart(dashboardData.printers);
                     renderPrinters(cachedPrinters);
                     renderSupplyWarnings(dashboardData.printers);
                     renderIncidents(dashboardData.printers);
@@ -330,6 +344,108 @@
                         y: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             ticks: { color: '#64748b', font: { family: 'Plus Jakarta Sans' } },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // == 依單位列印狀況圖表 ==
+        let unitChartInstance = null;
+
+        function renderUnitChart(printers) {
+            const unitMap = {};
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const todayStr = now.toISOString().substring(0, 10);
+
+            printers.forEach(p => {
+                const unit = p.unit;
+                if (!unit) return;
+                if (!unitMap[unit]) unitMap[unit] = { daily: 0, monthly: 0, yearly: 0 };
+
+                // 今日：使用 printer 層級的 daily_total
+                unitMap[unit].daily += (p.daily_total || 0);
+                unitMap[unit].monthly += (p.daily_total || 0);
+                unitMap[unit].yearly += (p.daily_total || 0);
+
+                // 歷史：從 trend 累積月/年資料
+                (p.trend || []).forEach(row => {
+                    const d = (row.recorded_at || '').substring(0, 10);
+                    if (!d) return;
+                    const val = row.daily_total || row.total || 0;
+                    const rowDate = new Date(d);
+                    if (rowDate.getFullYear() === currentYear) unitMap[unit].yearly += val;
+                    if (rowDate.getMonth() === currentMonth) unitMap[unit].monthly += val;
+                });
+            });
+
+            const units = Object.keys(unitMap).sort();
+            const dailyData = units.map(u => unitMap[u].daily);
+            const monthlyData = units.map(u => unitMap[u].monthly);
+            const yearlyData = units.map(u => unitMap[u].yearly);
+
+            const ctx = document.getElementById('unit-chart').getContext('2d');
+            if (unitChartInstance) { unitChartInstance.destroy(); unitChartInstance = null; }
+            Object.keys(Chart.instances).forEach(key => {
+                const chart = Chart.instances[key];
+                if (chart && chart.canvas && chart.canvas.id === 'unit-chart') chart.destroy();
+            });
+
+            unitChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: units,
+                    datasets: [
+                        {
+                            label: '今日',
+                            data: dailyData,
+                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                            borderColor: '#6366f1',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: '本月',
+                            data: monthlyData,
+                            backgroundColor: 'rgba(34, 211, 238, 0.7)',
+                            borderColor: '#22d3ee',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: '今年',
+                            data: yearlyData,
+                            backgroundColor: 'rgba(251, 191, 36, 0.7)',
+                            borderColor: '#fbbf24',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' }, beginAtZero: true },
                             beginAtZero: true
                         }
                     }
