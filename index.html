@@ -7,6 +7,7 @@
     <title>Printer Operations Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
@@ -100,14 +101,37 @@
 </head>
 
 <body class="p-8">
-    <div class="max-w-7xl mx-auto">
+    <!-- 登入畫面 -->
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center" style="background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);">
+        <div class="text-center">
+            <h1 class="text-5xl font-extrabold tracking-tighter mb-2 text-white">OPERATIONS<span class="text-indigo-500">CENTER</span></h1>
+            <p class="text-slate-400 font-medium mb-8">全院印表機監控系統</p>
+            <button id="google-login-btn"
+                class="flex items-center gap-3 mx-auto bg-white text-slate-900 hover:bg-slate-100 font-bold py-3 px-8 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                onclick="handleGoogleLogin()">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.65 0 6.53 5.78 5.04 13.42l7.46 5.79C13.64 15.08 18.3 9.5 24 9.5z"/>
+                    <path fill="#34A853" d="M46.85 24.49c.34-1.97.54-3.98.54-6.49 0-1.49-.13-2.9-.39-4.25H24v9.03h12.74c-.57 2.99-2.23 5.45-4.74 7.12l7.43 5.76c4.34-4.01 6.85-9.91 6.85-15.17z"/>
+                    <path fill="#4A90D9" d="M5.04 13.42C3.48 16.53 2.55 20.21 2.55 24s.93 7.47 2.49 10.58l-7.46 5.79C-1.54 37.01-3.04 30.92-3.04 24s1.5-13.01 4.09-18.58l4z"/>
+                    <path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.76l-7.43-5.76c-2.14 1.44-4.88 2.36-8.46 2.36-6.54 0-12.08-4.42-14.04-10.4L5.04 34.58C6.53 42.22 14.65 48 24 48z"/>
+                </svg>
+                Sign in with Google
+            </button>
+            <p id="login-error" class="text-red-400 text-sm mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <!-- 儀表板內容（初始隱藏） -->
+    <div id="dashboard-content" class="max-w-7xl mx-auto hidden">
         <header class="mb-8 flex justify-between items-end">
             <div>
                 <h1 class="text-5xl font-extrabold tracking-tighter mb-2">OPERATIONS<span
                         class="text-indigo-500">CENTER</span></h1>
                 <p class="text-slate-400 font-medium">全院印表機監控系統 · 歷史數據整合版</p>
             </div>
-            <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
+            <div class="flex items-center gap-4">
+                <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
+            </div>
         </header>
 
         <!-- 概況條 -->
@@ -175,24 +199,25 @@
     <script>
         let cachedPrinters = [];
 
-        async function init() {
-            try {
-                const response = await fetch('./public/data.json');
-                const dashboardData = await response.json();
-                document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
-
-                cachedPrinters = dashboardData.printers;
-                renderSummary(dashboardData.summary);
-                renderTrendChart(dashboardData.printers);
-                renderPrinters(cachedPrinters);
-                renderSupplyWarnings(dashboardData.printers);
-                renderIncidents(dashboardData.printers);
-            } catch (e) {
-                console.error("載入失敗:", e);
-            }
+        // == 儀表板渲染（需要登入後才呼叫） ==
+        function renderDashboard() {
+            fetch('./public/data.json')
+                .then(r => r.json())
+                .then(dashboardData => {
+                    document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
+                    cachedPrinters = dashboardData.printers;
+                    renderSummary(dashboardData.summary);
+                    renderTrendChart(dashboardData.printers);
+                    renderPrinters(cachedPrinters);
+                    renderSupplyWarnings(dashboardData.printers);
+                    renderIncidents(dashboardData.printers);
+                })
+                .catch(e => {
+                    console.error("載入失敗:", e);
+                });
         }
 
-        // 概況條渲染
+        // == 概況條渲染 ==
         function renderSummary(s) {
             const bar = document.getElementById('summary-bar');
             bar.innerHTML = `
@@ -211,7 +236,7 @@
             `;
         }
 
-        // 趨勢圖渲染
+        // == 趨勢圖渲染 ==
         function renderTrendChart(printers) {
             const dateMap = {};
             printers.forEach(p => {
@@ -268,7 +293,7 @@
             });
         }
 
-        // 耗材警告渲染
+        // == 耗材警告渲染 ==
         function renderSupplyWarnings(printers) {
             const warnings = [];
             printers.forEach(p => {
@@ -303,7 +328,7 @@
             `).join('');
         }
 
-        // 故障記錄渲染
+        // == 故障記錄渲染 ==
         function renderIncidents(printers) {
             const allIncidents = [];
             printers.forEach(p => {
@@ -335,7 +360,7 @@
             `).join('');
         }
 
-        // 印表機卡片渲染
+        // == 印表機卡片渲染 ==
         function renderPrinters(printers) {
             const grid = document.getElementById('printer-grid');
             grid.innerHTML = printers.map((p, idx) => {
@@ -426,7 +451,7 @@
             }).join('');
         }
 
-        // 輔助函數
+        // == 輔助函數 ==
         function getSupplyPercent(p, type) {
             const supply = (p.supplies || []).find(s => s.type === type);
             return supply ? supply.percent : 100;
@@ -448,7 +473,7 @@
             `;
         }
 
-        // 歷史彈窗
+        // == 歷史彈窗 ==
         function showHistory(index) {
             const p = cachedPrinters[index];
             document.getElementById('modal-title').innerText = `${p.location} 歷史數據統計`;
@@ -542,7 +567,7 @@
             }
         }
 
-        // 耗材監測彈窗
+        // == 耗材監測彈窗 ==
         function showSupplyMonitor(index) {
             const p = cachedPrinters[index];
             const supplies = p.supplies || [];
@@ -556,7 +581,6 @@
             `;
 
             const typeNames = { 0: '碳粉 (Toner)', 1: '墨水 (Ink)', 2: '紙張 (Paper)' };
-            const typeColors = { 0: '#6366f1', 1: '#f59e0b', 2: '#94a3b8' };
 
             supplies.forEach(s => {
                 const color = getSupplyColor(s.percent);
@@ -586,6 +610,90 @@
 
         function closeModal() {
             document.getElementById('history-modal').classList.add('hidden');
+        }
+
+        // == 認證邏輯 ==
+        let currentUser = null;
+
+        // Supabase 設定（請替換為你的專案資訊）
+        const SUPABASE_URL = 'https://你的專案ID.supabase.co';
+        const SUPABASE_ANON_KEY = '你的anon_key';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function handleGoogleLogin() {
+            const btn = document.getElementById('google-login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '登入中...';
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+
+            if (error) {
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = error.message;
+                errEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign in with Google';
+            }
+        }
+
+        function setAuthState(isLoggedIn) {
+            document.getElementById('login-screen').style.display = isLoggedIn ? 'none' : 'flex';
+            document.getElementById('dashboard-content').classList.toggle('hidden', !isLoggedIn);
+
+            if (isLoggedIn && currentUser) {
+                addSignOutButton(currentUser);
+            }
+        }
+
+        function addSignOutButton(user) {
+            const header = document.querySelector('header');
+            const existing = document.getElementById('signout-btn');
+            if (existing) existing.remove();
+
+            const btn = document.createElement('button');
+            btn.id = 'signout-btn';
+            btn.className = 'px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium transition-colors border border-white/10';
+            btn.textContent = `Sign out (${user.email})`;
+            btn.onclick = handleSignOut;
+
+            // 插入到 header 的 last-update 之前
+            const lastUpdateEl = document.getElementById('last-update');
+            header.insertBefore(btn, lastUpdateEl);
+        }
+
+        async function handleSignOut() {
+            await supabase.auth.signOut();
+            window.location.reload();
+        }
+
+        // == 初始化（檢查登入狀態） ==
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session) {
+                currentUser = session.user;
+                setAuthState(true);
+                renderDashboard();
+            } else {
+                setAuthState(false);
+            }
+
+            // 監聽登入狀態變化（例如登入後跳回）
+            supabase.auth.onAuthStateChange((_event, session) => {
+                if (session) {
+                    currentUser = session.user;
+                    setAuthState(true);
+                    renderDashboard();
+                } else {
+                    currentUser = null;
+                    setAuthState(false);
+                }
+            });
         }
 
         init();
