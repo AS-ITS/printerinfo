@@ -253,17 +253,17 @@
 
             if (sortedDates.length === 0) return;
 
-            // 徹底銷毀舊圖表實例
+            // 銷毀舊圖表實例
             if (trendChartInstance) {
                 trendChartInstance.destroy();
                 trendChartInstance = null;
             }
 
-            // 清理 Chart.js 全域註冊表
-            Chart.instances.forEach((chart, idx) => {
-                if (chart.canvas.id === 'trend-chart') {
+            // 清理 Chart.js 全域註冊表中殘留的舊實例
+            Object.keys(Chart.instances).forEach(key => {
+                const chart = Chart.instances[key];
+                if (chart && chart.canvas && chart.canvas.id === 'trend-chart') {
                     chart.destroy();
-                    Chart.instances.splice(idx, 1);
                 }
             });
 
