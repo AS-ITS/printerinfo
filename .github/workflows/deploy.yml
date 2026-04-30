@@ -32,7 +32,19 @@ jobs:
         run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
         timeout-minutes: 5
 
-      # 步驟 B: 執行 Go 程式從 Supabase 抓資料並產生 json
+      # 步驟 C: 驗證 migration 結果
+      - name: Verify unit column exists
+        run: |
+          echo "=== Checking printers table ==="
+          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='printers' AND column_name='unit';"
+
+          echo "=== Checking dashboard_stats view ==="
+          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='dashboard_stats' AND column_name='unit';"
+
+          echo "=== Running migration ==="
+          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
+
+      # 步驟 D: 執行 Go 程式從 Supabase 抓資料並產生 json
       - name: Generate data.json
         run: |
           go mod tidy
