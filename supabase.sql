@@ -121,7 +121,11 @@ SELECT
   COALESCE(supplies_agg.ink_percent,   100) AS ink_percent,
   COALESCE(supplies_agg.paper_percent, 100) AS paper_percent,
   p.warranty_end,
-  COALESCE(EXTRACT(DAY FROM (p.warranty_end - CURRENT_DATE))::INTEGER, 0) AS warranty_days,
+  -- 修正：未填 warranty_end 時顯示 NULL，不再偽造 365 天
+  CASE
+    WHEN p.warranty_end IS NULL THEN NULL
+    ELSE (p.warranty_end - CURRENT_DATE)
+  END AS warranty_days,
   COALESCE(inc_agg.recent_incidents_30d, 0) AS recent_incidents_30d,
   -- 新增：未解決故障數（open + in_progress）
   COALESCE(inc_agg.open_incidents_count, 0) AS open_incidents_count
