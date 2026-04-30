@@ -32,19 +32,7 @@ jobs:
         run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
         timeout-minutes: 5
 
-      # 步驟 C: 驗證 migration 結果
-      - name: Verify unit column exists
-        run: |
-          echo "=== Checking printers table ==="
-          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='printers' AND column_name='unit';"
-
-          echo "=== Checking dashboard_stats view ==="
-          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -c "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='dashboard_stats' AND column_name='unit';"
-
-          echo "=== Running migration ==="
-          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
-
-      # 步驟 D: 執行 Go 程式從 Supabase 抓資料並產生 json
+      # 步驟 C: 執行 Go 程式從 Supabase 抓資料並產生 json
       - name: Generate data.json
         run: |
           go mod tidy
@@ -53,11 +41,11 @@ jobs:
         env:
           SUPABASE_DB_CONNECTION: ${{ secrets.SUPABASE_DB_CONNECTION }}
 
-      # 步驟 B: 安裝 Vercel CLI
+      # 步驟 D: 安裝 Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 步驟 C: 部署 (此時 data.json 已經存在於工作目錄中)
+      # 步驟 E: 部署 (此時 data.json 已經存在於工作目錄中)
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
