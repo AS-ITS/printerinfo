@@ -32,7 +32,18 @@ jobs:
         run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
         timeout-minutes: 5
 
-      # 步驟 B: 執行 Go 程式從 Supabase 抓資料並產生 json
+      # 步驟 C: 驗證 migration 結果
+      - name: Verify unit column exists
+        run: |
+          result=$(psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='printers' AND column_name='unit')")
+          echo "unit column check: $result"
+          if [ "$result" != "t" ]; then
+            echo "ERROR: printers.unit column does not exist! Migration may have failed."
+            echo "Please run supabase.sql manually in Supabase SQL Editor."
+            exit 1
+          fi
+
+      # 步驟 D: 執行 Go 程式從 Supabase 抓資料並產生 json
       - name: Generate data.json
         run: |
           go mod tidy
