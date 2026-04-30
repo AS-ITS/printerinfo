@@ -192,6 +192,7 @@
                         <th class="px-4 py-3 font-bold text-left">單位</th>
                         <th class="px-4 py-3 font-bold text-left">印表機</th>
                         <th class="px-4 py-3 font-bold text-left hidden md:table-cell">型號</th>
+                        <th class="px-4 py-3 font-bold text-center hidden md:table-cell">彩色</th>
                         <th class="px-4 py-3 font-bold text-left hidden lg:table-cell">IP</th>
                         <th class="px-4 py-3 font-bold text-right">今日</th>
                         <th class="px-4 py-3 font-bold text-right hidden md:table-cell">碳粉</th>
@@ -238,25 +239,137 @@
 
     <script>
         let cachedPrinters = [];
+        let cachedMetrics = {};
+        let cachedSupplies = {};
+        let cachedIncidents = [];
 
         // == 儀表板渲染（需要登入後才呼叫） ==
-        function renderDashboard() {
-            fetch('./public/data.json')
-                .then(r => r.json())
-                .then(dashboardData => {
-                    document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
-                    cachedPrinters = dashboardData.printers;
-                    renderSummary(dashboardData.summary);
-                    renderTrendChart(dashboardData.printers);
-                    renderUnitChart(dashboardData.printers);
-                    renderPrinters(cachedPrinters);
-                    renderSupplyWarnings(dashboardData.printers);
-                    renderIncidents(dashboardData.printers);
-                    renderUnitFilter(dashboardData.printers);
-                })
-                .catch(e => {
-                    console.error("載入失敗:", e);
+        async function renderDashboard() {
+            document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
+
+            try {
+                const { data: rawPrinters } = await supabaseClient
+                    .from('printers')
+                    .select('*')
+                    .order('unit', { ascending: true })
+                    .order('location', { ascending: true });
+
+                if (!rawPrinters || rawPrinters.length === 0) {
+                    console.error('無印表機資料');
+                    return;
+                }
+
+                const { data: rawSupplies } = await supabaseClient
+                    .from('supplies')
+                    .select('*');
+
+                const { data: rawMetrics } = await supabaseClient
+                    .from('daily_stats')
+                    .select('*')
+                    .order('recorded_at', { ascending: true });
+
+                const { data: rawIncidents } = await supabaseClient
+                    .from('incidents')
+                    .select('*')
+                    .gte('incident_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10));
+
+                cachedIncidents = rawIncidents || [];
+                cachedSupplies = {};
+                (rawSupplies || []).forEach(s => {
+                    if (!cachedSupplies[s.printer_id]) cachedSupplies[s.printer_id] = [];
+                    cachedSupplies[s.printer_id].push(s);
                 });
+
+                cachedMetrics = {};
+                (rawMetrics || []).forEach(m => {
+                    if (!cachedMetrics[m.ip_address]) cachedMetrics[m.ip_address] = [];
+                    cachedMetrics[m.ip_address].push(m);
+                });
+
+                // 建構 dashboard 用的印表機資料（含今日印量、trend、supplies、incidents）
+                const printers = rawPrinters.map(p => buildPrinterData(p));
+
+                const summary = computeSummary(printers);
+                renderSummary(summary);
+                renderTrendChart(printers);
+                renderUnitChart(printers);
+                renderPrinters(printers);
+                renderSupplyWarnings(printers);
+                renderIncidents(cachedIncidents);
+                renderUnitFilter(printers);
+            } catch (e) {
+                console.error("載入失敗:", e);
+            }
+        }
+
+        function computeSummary(printers) {
+            let todayTotal = 0;
+            printers.forEach(p => {
+                todayTotal += (p.daily_total || 0);
+            });
+            return {
+                today_total: todayTotal,
+                total_printers: printers.length,
+                supply_warning_count: printers.filter(p =>
+                    (p.supplies || []).some(s => s.percent < 15)
+                ).length
+            };
+        }
+
+        function buildPrinterData(p) {
+            const supplies = (cachedSupplies[p.id] || []).map(s => ({
+                type: { toner: 0, ink: 1, paper: 2 }[s.supply_type] || 0,
+                percent: s.remaining_percent || 100
+            }));
+
+            const rawMetrics = (cachedMetrics[p.ip_address] || []).sort((a, b) =>
+                new Date(a.recorded_at) - new Date(b.recorded_at)
+            );
+
+            // daily_stats.daily_total is the daily increment (already computed by SQL LAG)
+            const dailyTotal = rawMetrics.length > 0 ?
+                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_total || 0) : 0;
+            const dailyPrint = rawMetrics.length > 0 ?
+                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_print || 0) : 0;
+            const dailyCopy = rawMetrics.length > 0 ?
+                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_copy || 0) : 0;
+
+            const trend = rawMetrics.map(m => ({
+                recorded_at: m.recorded_at,
+                daily_total: Math.max(0, m.daily_total || m.total_count || 0)
+            }));
+
+            const incidents = cachedIncidents
+                .filter(i => i.printer_id === p.id)
+                .map(i => ({
+                    error_code: i.error_code,
+                    description: i.description,
+                    incident_date: i.incident_date?.substring(0, 10),
+                    downtime_minutes: i.downtime_minutes
+                }));
+
+            const now = new Date();
+            const warrantyDays = p.warranty_end ?
+                Math.ceil((new Date(p.warranty_end) - now) / (24 * 60 * 60 * 1000)) : 999;
+
+            const status = p.status || (supplies.some(s => s.percent < 15) ? 'warning' : 'normal');
+
+            return {
+                id: p.id,
+                ip_address: p.ip_address,
+                location: p.location,
+                model: p.model,
+                unit: p.unit,
+                printer_status: status,
+                daily_total: dailyTotal,
+                daily_print: dailyPrint,
+                daily_copy: dailyCopy,
+                total_all_time: rawMetrics.length > 0 ? (rawMetrics[rawMetrics.length - 1].total_count || 0) : 0,
+                warranty_days: Math.max(0, warrantyDays),
+                supplies,
+                incidents,
+                trend
+            };
         }
 
         // == 概況條渲染 ==
@@ -511,35 +624,38 @@
         }
 
         // == 故障記錄渲染 ==
-        function renderIncidents(printers) {
-            const allIncidents = [];
-            printers.forEach(p => {
-                (p.incidents || []).forEach(inc => {
-                    allIncidents.push({ ...inc, printer: p.location, ip: p.ip_address });
-                });
-            });
-
+        function renderIncidents(allIncidents) {
             const container = document.getElementById('incidents-section');
             const list = document.getElementById('incidents-list');
-            if (allIncidents.length === 0) {
+            if (!allIncidents || allIncidents.length === 0) {
                 container.classList.add('hidden');
                 return;
             }
             container.classList.remove('hidden');
-            list.innerHTML = allIncidents.map(inc => `
+
+            // 用 printer_id 去 cachedPrinters 找 location/ip
+            const getPrinterInfo = (id) => {
+                const p = cachedPrinters.find(x => x.id === id);
+                return p ? { printer: p.location, ip: p.ip_address } : { printer: '?', ip: '' };
+            };
+
+            list.innerHTML = allIncidents.map(inc => {
+                const info = getPrinterInfo(inc.printer_id);
+                return `
                 <div class="bg-white/5 rounded-xl p-3 flex justify-between items-center">
                     <div>
-                        <span class="font-bold text-white">${inc.printer}</span>
-                        <span class="text-slate-400 ml-2 text-sm">${inc.ip}</span>
+                        <span class="font-bold text-white">${info.printer}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${info.ip}</span>
                         <span class="text-red-400 ml-2 font-mono text-sm">${inc.error_code || 'Unknown'}</span>
                         <span class="text-slate-400 ml-2 text-sm">${inc.description || ''}</span>
                     </div>
                     <div class="text-right text-slate-500 text-sm">
-                        <div>${inc.incident_date || ''}</div>
+                        <div>${inc.incident_date?.substring(0, 10) || ''}</div>
                         ${inc.downtime_minutes ? `<div class="text-red-400">${inc.downtime_minutes} 分鐘</div>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         // == 印表機條列渲染 ==
@@ -566,6 +682,7 @@
                         </td>
                         <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model}</td>
                         <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address}</td>
+                        <td class="px-4 py-3 text-center hidden md:table-cell">${isColorPrinter(p.model) ? '✔' : '✘'}</td>
                         <td class="px-4 py-3 text-right">
                             <div class="text-lg font-black text-white">${(p.daily_total || 0).toLocaleString()}</div>
                             <div class="text-[10px] text-slate-500">列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}</div>
@@ -582,6 +699,13 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // == 彩色列印判斷 ==
+        function isColorPrinter(model) {
+            if (!model) return false;
+            // 檢查 "Color" 或 "color" 或 Canon C 系列
+            return /color|c[0-9]/i.test(model) || /Canon.*(C\d)/i.test(model);
         }
 
         // == 輔助函數 ==

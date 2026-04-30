@@ -13,20 +13,9 @@ import (
 
 // 每日統計行（來自 daily_stats 視圖）
 type DailyRow struct {
-	IPAddress  string `json:"ip_address"`
-	Location   string `json:"location"`
-	Model      string `json:"model"`
-	RecordedAt string `json:"recorded_at"`
-	TotalCount int    `json:"total_count"`
-	PrintCount int    `json:"print_count"`
-	CopyCount  int    `json:"copy_count"`
-	ScanTotal  int    `json:"scan_total"`
-	FaxCount   int    `json:"fax_count"`
-	DailyTotal int    `json:"daily_total"`
-	DailyPrint int    `json:"daily_print"`
-	DailyCopy  int    `json:"daily_copy"`
-	DailyScan  int    `json:"daily_scan"`
-	DailyFax   int    `json:"daily_fax"`
+	IPAddress    string `json:"ip_address"`
+	RecordedAt   string `json:"recorded_at"`
+	DailyTotal   int    `json:"daily_total"`
 }
 
 // 耗材狀態
@@ -49,6 +38,7 @@ type DashboardPrinter struct {
 	IPAddress  string  `json:"ip_address"`
 	Location   string  `json:"location"`
 	Model      string  `json:"model"`
+	Unit       string  `json:"unit"`
 	PrinterState    string `json:"printer_status"`
 	TonerPercent    int    `json:"toner_percent"`
 	InkPercent      int    `json:"ink_percent"`
@@ -86,12 +76,11 @@ func main() {
 	}
 	defer db.Close()
 
-	// 3. 查詢 daily_stats 視圖（歷史趨勢）
+	// 3. 查詢 daily_stats 視圖（歷史趨勢，包含每日增量 daily_total）
 	trendRows, err := db.Query(`
 		SELECT
 			ip_address, recorded_at::text,
-			total_count, print_count, copy_count, scan_total, fax_count,
-			daily_total, daily_print, daily_copy, daily_scan, daily_fax
+			daily_total
 		FROM daily_stats
 		ORDER BY recorded_at DESC
 	`)
@@ -105,8 +94,7 @@ func main() {
 		var r DailyRow
 		err := trendRows.Scan(
 			&r.IPAddress, &r.RecordedAt,
-			&r.TotalCount, &r.PrintCount, &r.CopyCount, &r.ScanTotal, &r.FaxCount,
-			&r.DailyTotal, &r.DailyPrint, &r.DailyCopy, &r.DailyScan, &r.DailyFax,
+			&r.DailyTotal,
 		)
 		if err != nil {
 			log.Fatal("趨勢讀取失敗:", err)
@@ -117,10 +105,10 @@ func main() {
 
 	// 4. 查詢 dashboard_stats 視圖（當前狀態）
 	dashRows, err := db.Query(`
-		SELECT id, ip_address, location, model, printer_status,
+		SELECT id, ip_address, location, model, unit, printer_status,
 		       toner_percent, ink_percent, paper_percent, warranty_days, recent_incidents_30d
 		FROM dashboard_stats
-		ORDER BY ip_address
+		ORDER BY unit, ip_address
 	`)
 	if err != nil {
 		log.Fatal("儀表板查詢失敗:", err)
@@ -182,7 +170,7 @@ func main() {
 	for dashRows.Next() {
 		var dp DashboardPrinter
 		err := dashRows.Scan(
-			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.PrinterState,
+			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.PrinterState,dp.Model, &dp.Unit, &dp.PrinterState,
 			&dp.TonerPercent, &dp.InkPercent, &dp.PaperPercent,
 			&dp.WarrantyDays, &dp.RecentIncidents,
 		)
@@ -194,10 +182,10 @@ func main() {
 		dp.Incidents = incidentMap[dp.ID]
 		dp.Trend = trendMap[dp.IPAddress]
 
-		// 從趨勢資料計算 total_all_time
+		// 從趨勢資料累加 total_all_time
 		dp.TotalCount = 0
-		if len(dp.Trend) > 0 {
-			dp.TotalCount = dp.Trend[len(dp.Trend)-1].TotalCount
+		for _, t := range dp.Trend {
+			dp.TotalCount += t.DailyTotal
 		}
 
 		// 去重（dashboard 和趨勢可能有重疊的 IP）
@@ -216,9 +204,9 @@ func main() {
 				response.Summary.SupplyWarningCount++
 			}
 		}
-		// 從最新一筆趨勢取得今日印量
-		if len(p.Trend) > 0 {
-			response.Summary.TodayTotal += p.Trend[0].DailyPrint
+		// 從趨勢資料計算今日印量（最新一筆 daily_total）
+		if len(p.Trend) > 0 && p.Trend[0].DailyTotal > 0 {
+			response.Summary.TodayTotal += p.Trend[0].DailyTotal
 		}
 	}
 

@@ -8,6 +8,7 @@
 ALTER TABLE printers ADD COLUMN IF NOT EXISTS purchase_date DATE;
 ALTER TABLE printers ADD COLUMN IF NOT EXISTS warranty_end DATE;
 ALTER TABLE printers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'normal';
+ALTER TABLE printers ADD COLUMN IF NOT EXISTS unit TEXT;
 
 -- 第二步：建立 printer_metrics 每日數據紀錄表（若不存在）
 CREATE TABLE IF NOT EXISTS printer_metrics (
@@ -86,6 +87,7 @@ SELECT
   p.ip_address,
   p.location,
   p.model,
+  p.unit,
   COALESCE(p.status, 'normal') AS printer_status,
   COALESCE(supplies_agg.toner_percent, 100) AS toner_percent,
   COALESCE(supplies_agg.ink_percent, 100) AS ink_percent,
