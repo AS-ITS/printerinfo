@@ -160,3 +160,4 @@ LEFT JOIN (
 -- 印表機完整狀態：     SELECT ip_address, status, toner_percent, ink_percent,
 --                             warranty_days, open_incidents_count
 --                      FROM dashboard_stats;
+
