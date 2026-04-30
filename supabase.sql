@@ -77,9 +77,11 @@ WHERE NOT EXISTS (
     AND supplies.supply_type = s.type
 );
 
--- 第七步：建立/更新 daily_stats 視圖
+-- 第八步：建立/更新 daily_stats 視圖
 -- 修正：LAG 差值改用 GREATEST(..., 0) 防止計數器重置時出現負數
-CREATE OR REPLACE VIEW daily_stats AS
+-- 修正：先 DROP 再 CREATE，避免欄位順序或名稱異動時報錯
+DROP VIEW IF EXISTS daily_stats CASCADE;
+CREATE VIEW daily_stats AS
 SELECT
   p.ip_address,
   p.location,
@@ -102,10 +104,12 @@ FROM printer_metrics m
 JOIN printers p ON m.printer_id = p.id
 WINDOW w AS (PARTITION BY m.printer_id ORDER BY m.recorded_at);
 
--- 第八步：建立 dashboard_stats 儀表板整合視圖
+-- 第九步：建立 dashboard_stats 儀表板整合視圖
 -- 修正：warranty_end 為 NULL 時 warranty_days 回傳 NULL，避免誤顯示為 365
 -- 修正：新增 open_incidents_count 統計未解決故障數
-CREATE OR REPLACE VIEW dashboard_stats AS
+-- 修正：先 DROP 再 CREATE，避免欄位順序或名稱異動時報錯
+DROP VIEW IF EXISTS dashboard_stats CASCADE;
+CREATE VIEW dashboard_stats AS
 SELECT
   p.id,
   p.ip_address,
@@ -120,7 +124,7 @@ SELECT
   -- 修正：未填 warranty_end 時顯示 NULL，不再偽造 365 天
   CASE
     WHEN p.warranty_end IS NULL THEN NULL
-    ELSE EXTRACT(DAY FROM p.warranty_end - CURRENT_DATE)::INTEGER
+    ELSE (p.warranty_end - CURRENT_DATE)
   END AS warranty_days,
   COALESCE(inc_agg.recent_incidents_30d, 0) AS recent_incidents_30d,
   -- 新增：未解決故障數（open + in_progress）
