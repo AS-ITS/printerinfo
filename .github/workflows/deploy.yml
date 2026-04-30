@@ -35,9 +35,9 @@ jobs:
       # 步驟 C: 驗證 migration 結果
       - name: Verify unit column exists
         run: |
-          result=$(psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='printers' AND column_name='unit')")
-          echo "unit column check: $result"
-          if [ "$result" != "t" ]; then
+          result=$(psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -t -A -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='printers' AND column_name='unit')")
+          echo "unit column check: [$result]"
+          if ! echo "$result" | grep -q "t"; then
             echo "ERROR: printers.unit column does not exist! Migration may have failed."
             echo "Please run supabase.sql manually in Supabase SQL Editor."
             exit 1
