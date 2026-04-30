@@ -23,11 +23,13 @@ jobs:
         with:
           go-version: '1.21'
 
-      # 步驟 A: 執行資料庫遷移（確保欄位存在）
+      # 步驟 A: 安裝 psql 客戶端
+      - name: Install psql
+        run: sudo apt-get install -y postgresql-client
+
+      # 步驟 B: 執行資料庫遷移（確保欄位存在）
       - name: Run migrations
-        run: |
-          which psql || apt-get update && apt-get install -y postgresql-client
-          psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
+        run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
         timeout-minutes: 5
 
       # 步驟 B: 執行 Go 程式從 Supabase 抓資料並產生 json
