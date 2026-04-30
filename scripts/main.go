@@ -24,6 +24,7 @@ type Supply struct {
 	Percent int `json:"percent"`
 }
 
+
 // 故障紀錄
 type Incident struct {
 	ErrorCode    string `json:"error_code"`
@@ -106,7 +107,7 @@ func main() {
 	// 4. 查詢 dashboard_stats 視圖（當前狀態）
 	dashRows, err := db.Query(`
 		SELECT id, ip_address, location, model, unit, printer_status,
-		       toner_percent, ink_percent, paper_percent, warranty_days, recent_incidents_30d
+		       toner_percent, ink_percent, paper_percent, COALESCE(warranty_days, 0), recent_incidents_30d
 		FROM dashboard_stats
 		ORDER BY unit, ip_address
 	`)
