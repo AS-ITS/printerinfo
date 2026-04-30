@@ -170,7 +170,7 @@ func main() {
 	for dashRows.Next() {
 		var dp DashboardPrinter
 		err := dashRows.Scan(
-			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.PrinterState,dp.Model, &dp.Unit, &dp.PrinterState,
+			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.Unit, &dp.PrinterState,
 			&dp.TonerPercent, &dp.InkPercent, &dp.PaperPercent,
 			&dp.WarrantyDays, &dp.RecentIncidents,
 		)
