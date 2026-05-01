@@ -336,7 +336,8 @@
 
             const trend = rawMetrics.map(m => ({
                 recorded_at: m.recorded_at,
-                daily_total: Math.max(0, m.daily_total || m.total_count || 0)
+                // daily_total 是 daily_stats view 已用 LAG 算好的增量值，不可 fallback 到累積值 total_count
+                daily_total: Math.max(0, m.daily_total || 0)
             }));
 
             const incidents = cachedIncidents

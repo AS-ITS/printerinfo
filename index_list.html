@@ -6,52 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Printer Analytics | 年度累計報告</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background: radial-gradient(circle at top left, #1e293b, #0f172a);
             background-attachment: fixed;
             color: #f8fafc;
         }
-
         .glass-panel {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
         }
-
-        .text-header {
-            font-size: 3.5rem;
-            font-weight: 800;
-        }
-
-        .text-data {
-            font-size: 1.5rem;
-            font-weight: 700;
-        }
-
-        .text-label {
-            font-size: 1.125rem;
-            font-weight: 600;
-        }
-
-        .row-hover:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        /* 載入動畫 */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        .loading-pulse {
-            animation: pulse 1.5s ease-in-out infinite;
-        }
+        .text-header { font-size: 3.5rem; font-weight: 800; }
+        .text-data   { font-size: 1.5rem;  font-weight: 700; }
+        .row-hover:hover { background: rgba(255, 255, 255, 0.05); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .loading-pulse { animation: pulse 1.5s ease-in-out infinite; }
     </style>
 </head>
 
@@ -59,10 +33,8 @@
 
     <nav class="glass-panel sticky top-0 z-50 px-10 py-6 mb-12">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span class="text-indigo-400">HISTORY</span>
-            </h1>
+            <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span class="text-indigo-400">HISTORY</span></h1>
             <div class="flex items-center gap-6">
-                <!-- 載入狀態指示 -->
                 <span id="status-badge" class="text-slate-500 text-sm font-bold loading-pulse">載入中...</span>
                 <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">選擇年份:</span>
                 <select id="year-selector" onchange="render()"
@@ -79,92 +51,92 @@
             <p id="last-update" class="text-slate-500 text-sm mt-3"></p>
         </div>
 
-        <!-- 錯誤訊息 -->
         <div id="error-msg" class="hidden glass-panel rounded-2xl p-6 mb-8 border border-red-500/30 bg-red-500/10">
             <p class="text-red-400 font-bold">⚠️ 資料載入失敗</p>
             <p id="error-detail" class="text-red-300 text-sm mt-1"></p>
         </div>
 
-        <div id="printer-container" class="space-y-16">
-        </div>
+        <div id="printer-container" class="space-y-16"></div>
     </main>
 
     <script>
-        // =============================================
-        // Supabase 設定
-        // =============================================
-        const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
+        const SUPABASE_URL      = 'https://aopzclrptvpfovklhcip.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient    = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 全域資料
         let fullData = [];
 
         // =============================================
-        // 初始化：從 Supabase 拉取資料
+        // 計算每日增量（今天累積值 - 前一天累積值）
+        // 若差值為負（計數器重置），視為 0
         // =============================================
+        function calcDailyDeltas(sortedRows) {
+            return sortedRows.map((cur, i) => {
+                const prev = sortedRows[i - 1];
+                return {
+                    recorded_at: cur.recorded_at,
+                    // 當天增量 = 今天累積 - 昨天（或最近一筆）累積，負值歸零
+                    d_print: prev ? Math.max(0, (cur.print_count || 0) - (prev.print_count || 0)) : 0,
+                    d_copy:  prev ? Math.max(0, (cur.copy_count  || 0) - (prev.copy_count  || 0)) : 0,
+                    d_fax:   prev ? Math.max(0, (cur.fax_count   || 0) - (prev.fax_count   || 0)) : 0,
+                };
+            });
+        }
+
         async function init() {
             const statusEl = document.getElementById('status-badge');
             try {
-                // 1. 拉取所有印表機基本資料
-                const { data: printers, error: printerErr } = await supabaseClient
+                // 1. 拉取印表機清單
+                const { data: printers, error: pErr } = await supabaseClient
                     .from('printers')
                     .select('id, ip_address, location, model, unit')
                     .order('unit', { ascending: true })
                     .order('location', { ascending: true });
 
-                if (printerErr) throw printerErr;
-                if (!printers || printers.length === 0) {
-                    throw new Error('沒有任何印表機資料');
-                }
+                if (pErr) throw pErr;
+                if (!printers?.length) throw new Error('沒有任何印表機資料');
 
-                // 2. 拉取 daily_stats view 的全部歷史記錄（含每日差值）
-                const { data: stats, error: statsErr } = await supabaseClient
-                    .from('daily_stats')
-                    .select('ip_address, recorded_at, daily_print, daily_copy, daily_fax, daily_total, print_count, copy_count, fax_count')
+                // 2. 拉取 printer_metrics 原始累積資料（依印表機、日期排序）
+                const { data: metrics, error: mErr } = await supabaseClient
+                    .from('printer_metrics')
+                    .select('printer_id, recorded_at, print_count, copy_count, fax_count')
+                    .order('printer_id', { ascending: true })
                     .order('recorded_at', { ascending: true });
 
-                if (statsErr) throw statsErr;
+                if (mErr) throw mErr;
 
-                // 3. 以 ip_address 建立快速索引 map
-                const statsMap = {};
-                (stats || []).forEach(row => {
-                    const ip = row.ip_address;
-                    if (!statsMap[ip]) statsMap[ip] = [];
-                    statsMap[ip].push(row);
+                // 3. 依 printer_id 分組
+                const metricsByPrinter = {};
+                (metrics || []).forEach(row => {
+                    if (!metricsByPrinter[row.printer_id]) metricsByPrinter[row.printer_id] = [];
+                    metricsByPrinter[row.printer_id].push(row);
                 });
 
-                // 4. 為每台印表機聚合年/月資料
+                // 4. 為每台印表機計算差值並聚合年/月
                 fullData = printers.map(p => {
-                    const rows = statsMap[p.ip_address] || [];
-                    // 年份 → 月份 → { print, copy, fax, total }
+                    const rows   = metricsByPrinter[p.id] || [];   // 已按 recorded_at ASC 排序
+                    const deltas = calcDailyDeltas(rows);           // 計算每日增量
+
+                    // 聚合：年 → 月 → { print, copy, fax, total }
                     const yearMap = {};
-
-                    rows.forEach(row => {
-                        if (!row.recorded_at) return;
-                        const date = new Date(row.recorded_at);
-                        const year = String(date.getFullYear());
+                    deltas.forEach(d => {
+                        if (!d.recorded_at) return;
+                        const date  = new Date(d.recorded_at);
+                        const year  = String(date.getFullYear());
                         const month = String(date.getMonth() + 1).padStart(2, '0');
-
-                        // 優先使用 daily_* 差值欄位（已由 SQL LAG 計算），避免累加重複
-                        const dPrint = Math.max(0, row.daily_print || 0);
-                        const dCopy  = Math.max(0, row.daily_copy  || 0);
-                        const dFax   = Math.max(0, row.daily_fax   || 0);
-                        const dTotal = Math.max(0, row.daily_total || (dPrint + dCopy + dFax));
+                        const total = d.d_print + d.d_copy + d.d_fax;
 
                         if (!yearMap[year]) yearMap[year] = { total: 0, months: {} };
-                        if (!yearMap[year].months[month]) {
+                        if (!yearMap[year].months[month])
                             yearMap[year].months[month] = { print: 0, copy: 0, fax: 0, total: 0 };
-                        }
 
-                        yearMap[year].months[month].print += dPrint;
-                        yearMap[year].months[month].copy  += dCopy;
-                        yearMap[year].months[month].fax   += dFax;
-                        yearMap[year].months[month].total += dTotal;
-                        yearMap[year].total += dTotal;
+                        yearMap[year].months[month].print += d.d_print;
+                        yearMap[year].months[month].copy  += d.d_copy;
+                        yearMap[year].months[month].fax   += d.d_fax;
+                        yearMap[year].months[month].total += total;
+                        yearMap[year].total               += total;
                     });
 
-                    // 轉換成陣列格式供前端渲染
                     const history = Object.keys(yearMap).sort().reverse().map(year => ({
                         year,
                         year_total: { total: yearMap[year].total },
@@ -174,37 +146,27 @@
                         }))
                     }));
 
-                    return {
-                        location: p.location,
-                        ip: p.ip_address,
-                        model: p.model,
-                        unit: p.unit,
-                        history
-                    };
-                }).filter(p => p.history.length > 0); // 僅保留有資料的印表機
+                    return { location: p.location, ip: p.ip_address, model: p.model, unit: p.unit, history };
+                }).filter(p => p.history.length > 0);
 
-                if (fullData.length === 0) {
-                    throw new Error('所有印表機均無歷史列印紀錄');
-                }
+                if (!fullData.length) throw new Error('所有印表機均無歷史列印紀錄');
 
-                // 5. 取得所有不重複年份，填充年份選擇器
+                // 5. 填充年份選擇器
                 const years = new Set();
                 fullData.forEach(p => p.history.forEach(h => years.add(h.year)));
                 const selector = document.getElementById('year-selector');
                 selector.innerHTML = '';
                 Array.from(years).sort().reverse().forEach(y => {
                     const opt = document.createElement('option');
-                    opt.value = y;
-                    opt.innerText = y + ' 年度';
+                    opt.value = y; opt.innerText = y + ' 年度';
                     selector.appendChild(opt);
                 });
 
-                // 更新狀態
                 statusEl.textContent = `已更新：${new Date().toLocaleString('zh-TW')}`;
                 statusEl.classList.remove('loading-pulse');
                 statusEl.classList.add('text-emerald-400');
                 document.getElementById('last-update').textContent =
-                    `資料來源：Supabase 即時讀取 · ${printers.length} 台印表機 · ${(stats || []).length} 筆記錄`;
+                    `即時來源：Supabase · ${printers.length} 台印表機 · ${(metrics||[]).length} 筆原始記錄`;
 
                 render();
 
@@ -218,12 +180,9 @@
             }
         }
 
-        // =============================================
-        // 渲染：依選擇的年份顯示各印表機月份報表
-        // =============================================
         function render() {
             const selectedYear = document.getElementById('year-selector').value;
-            const container = document.getElementById('printer-container');
+            const container    = document.getElementById('printer-container');
             container.innerHTML = '';
 
             fullData.forEach(printer => {
@@ -232,7 +191,6 @@
 
                 const section = document.createElement('div');
                 section.className = 'glass-panel rounded-[3rem] p-12 overflow-hidden border-white/10';
-
                 section.innerHTML = `
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-8">
                         <div>
@@ -245,7 +203,6 @@
                             <p class="text-6xl font-black text-white">${yearInfo.year_total.total.toLocaleString()}</p>
                         </div>
                     </div>
-
                     <div class="overflow-x-auto">
                         <table class="w-full text-center">
                             <thead>
@@ -274,19 +231,15 @@
                 container.appendChild(section);
             });
 
-            // 若該年份完全沒有資料
-            if (container.children.length === 0) {
+            if (!container.children.length) {
                 container.innerHTML = `
                     <div class="glass-panel rounded-3xl p-12 text-center text-slate-500">
                         <p class="text-2xl font-bold">該年度無任何列印紀錄</p>
-                    </div>
-                `;
+                    </div>`;
             }
         }
 
-        // 啟動
         window.onload = init;
     </script>
 </body>
-
 </html>
