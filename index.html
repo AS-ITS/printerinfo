@@ -200,7 +200,7 @@
                             <tr class="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
                                 <th class="px-4 py-3 font-bold text-left">狀態</th>
                                 <th class="px-4 py-3 font-bold text-left">單位</th>
-                                <th class="px-4 py-3 font-bold text-left">印表機</th>
+                                <th class="px-4 py-3 font-bold text-left">地點</th>
                                 <th class="px-4 py-3 font-bold text-left hidden md:table-cell">型號</th>
                                 <th class="px-4 py-3 font-bold text-center hidden md:table-cell">彩色</th>
                                 <th class="px-4 py-3 font-bold text-left hidden lg:table-cell">IP</th>
@@ -208,7 +208,6 @@
                                 <th class="px-4 py-3 font-bold text-right hidden md:table-cell">碳粉</th>
                                 <th class="px-4 py-3 font-bold text-right hidden md:table-cell">墨水</th>
                                 <th class="px-4 py-3 font-bold text-right hidden lg:table-cell">紙張</th>
-                                <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">保固</th>
                                 <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">累計</th>
                                 <th class="px-4 py-3 font-bold text-center">操作</th>
                             </tr>
@@ -846,10 +845,6 @@
                 const toner = getSupplyPercent(p, 'toner');
                 const ink = getSupplyPercent(p, 'ink');
                 const paper = getSupplyPercent(p, 'paper');
-                const warrantyClass = p.warranty_days > 90 ? 'text-green-400' :
-                    p.warranty_days > 30 ? 'text-amber-400' : 'text-red-400';
-                const warrantyText = p.warranty_days > 0 ? `${p.warranty_days} 天` : '已過期';
-
                 return `
                     <tr class="border-t border-white/5 hover:bg-white/5 transition-colors">
                         <td class="px-4 py-3"><div class="status-dot ${statusClass}" title="${p.printer_status}"></div></td>
@@ -860,8 +855,8 @@
                             <div class="text-[11px] text-slate-500 md:hidden">${p.ip_address}</div>
                         </td>
                         <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model}</td>
-                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address}</td>
                         <td class="px-4 py-3 text-center hidden md:table-cell">${isColorPrinter(p.model) ? '✔' : '✘'}</td>
+                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address}</td>
                         <td class="px-4 py-3 text-right">
                             <div class="text-lg font-black text-white">${(p.daily_total || 0).toLocaleString()}</div>
                             <div class="text-[10px] text-slate-500">列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}</div>
@@ -869,7 +864,6 @@
                         <td class="px-4 py-3 text-right"><span class="font-mono text-xs" style="color:${getSupplyColor(toner)}">${toner}%</span></td>
                         <td class="px-4 py-3 text-right"><span class="font-mono text-xs" style="color:${getSupplyColor(ink)}">${ink}%</span></td>
                         <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="font-mono text-xs" style="color:${getSupplyColor(paper)}">${paper}%</span></td>
-                        <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs ${warrantyClass}">${warrantyText}</span></td>
                         <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300">${(p.total_all_time || 0).toLocaleString()}</span></td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <button onclick="showHistory(${p.id})" class="text-indigo-400 hover:text-indigo-300 text-xs mr-2">歷史</button>
