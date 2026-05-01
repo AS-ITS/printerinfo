@@ -165,6 +165,22 @@
                     </div>
                 </div>
 
+                <!-- 年度統計圖 -->
+                <div id="yearly-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m4-14v14m4-10v10M7 13v8M3 17v4"></path>
+                        </svg>
+                        年度總印量統計
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="yearly-chart"></canvas>
+                    </div>
+                    <div id="yearly-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
+                        尚無年度統計資料
+                    </div>
+                </div>
+
                 <!-- 單位列印狀況 -->
                 <div id="unit-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
                     <h3 class="text-lg font-bold mb-4 flex items-center">
@@ -360,6 +376,7 @@
 
             renderSummary(computeSummary(scopedPrinters));
             renderTrendChart(scopedPrinters);
+            renderYearlyStatsChart(scopedPrinters);
             renderScopedUnitChart(scopedPrinters);
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
@@ -523,6 +540,102 @@
                         y: {
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             ticks: { color: '#64748b', font: { family: 'Plus Jakarta Sans' } },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // == 年度統計圖渲染 ==
+        let yearlyChartInstance = null;
+
+        function destroyYearlyChart() {
+            if (yearlyChartInstance) {
+                yearlyChartInstance.destroy();
+                yearlyChartInstance = null;
+            }
+            if (typeof Chart !== 'undefined' && Chart.instances) {
+                Object.keys(Chart.instances).forEach(key => {
+                    const chart = Chart.instances[key];
+                    if (chart && chart.canvas && chart.canvas.id === 'yearly-chart') chart.destroy();
+                });
+            }
+        }
+
+        function setYearlyChartEmpty(message, isEmpty) {
+            const empty = document.getElementById('yearly-chart-empty');
+            const canvas = document.getElementById('yearly-chart');
+            if (!empty || !canvas) return;
+            empty.textContent = message;
+            empty.classList.toggle('hidden', !isEmpty);
+            canvas.classList.toggle('hidden', isEmpty);
+        }
+
+        function renderYearlyStatsChart(printers) {
+            const section = document.getElementById('yearly-chart-section');
+            if (!section) return;
+
+            if (currentFilterUnit !== 'all') {
+                section.classList.add('hidden');
+                destroyYearlyChart();
+                return;
+            }
+
+            section.classList.remove('hidden');
+            const yearMap = {};
+            printers.forEach(p => {
+                (p.trend || []).forEach(row => {
+                    const date = new Date((row.recorded_at || '').substring(0, 10));
+                    if (Number.isNaN(date.getTime())) return;
+                    const year = String(date.getFullYear());
+                    yearMap[year] = (yearMap[year] || 0) + Math.max(0, row.daily_total || row.total || 0);
+                });
+            });
+
+            const years = Object.keys(yearMap).sort();
+            destroyYearlyChart();
+            if (years.length === 0) {
+                setYearlyChartEmpty('尚無年度統計資料', true);
+                return;
+            }
+
+            setYearlyChartEmpty('', false);
+            const ctx = document.getElementById('yearly-chart').getContext('2d');
+            yearlyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: '年度總印量',
+                        data: years.map(year => yearMap[year]),
+                        backgroundColor: 'rgba(129, 140, 248, 0.7)',
+                        borderColor: '#818cf8',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } },
                             beginAtZero: true
                         }
                     }
