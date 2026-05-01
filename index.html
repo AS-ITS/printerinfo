@@ -950,7 +950,17 @@
 
         // == 印表機條列渲染 ==
         function renderPrinters(printers) {
+            const grid = document.getElementById('printer-grid');
             const tbody = document.getElementById('printer-table-body');
+            if (!grid || !tbody) return;
+
+            if (currentFilterUnit === 'all') {
+                grid.classList.add('hidden');
+                tbody.innerHTML = '';
+                return;
+            }
+
+            grid.classList.remove('hidden');
             tbody.innerHTML = printers.map((p, idx) => {
                 const statusClass = p.printer_status === 'warning' ? 'status-warning' :
                     p.printer_status === 'error' ? 'status-error' : 'status-normal';
