@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Analytics | Glass Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top left, #1e293b, #0f172a);
+            background-attachment: fixed;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 文字加大一級優化 */
+        .text-header {
+            font-size: 3.5rem;
+            font-weight: 800;
+        }
+
+        .text-data {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .text-label {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .row-hover:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen pb-20">
+
+    <nav class="glass-panel sticky top-0 z-50 px-10 py-6 mb-12">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span class="text-indigo-400">HISTORY</span>
+            </h1>
+            <div class="flex items-center gap-6">
+                <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">選擇年份:</span>
+                <select id="year-selector" onchange="render()"
+                    class="bg-slate-800 text-white px-6 py-2 rounded-xl border border-white/20 text-lg font-bold outline-none cursor-pointer">
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-8">
+        <div class="mb-16">
+            <p class="text-emerald-400 font-black text-xl uppercase tracking-[0.3em] mb-3">Statistics Center</p>
+            <h2 class="text-header text-white leading-none">年度累計報告</h2>
+        </div>
+
+        <div id="printer-container" class="space-y-16">
+        </div>
+    </main>
+
+    <script>
+        let fullData = [];
+
+        async function init() {
+            try {
+                const res = await fetch('data.json');
+                const raw = await res.json();
+
+                // 確保資料是陣列，修正 forEach undefined 錯誤
+                fullData = Array.isArray(raw) ? raw : [];
+                if (fullData.length === 0) {
+                    console.error("JSON data is empty or not an array");
+                    return;
+                }
+
+                // 抓取所有不重複年份
+                const years = new Set();
+                fullData.forEach(p => p.history.forEach(h => years.add(h.year)));
+                const selector = document.getElementById('year-selector');
+                Array.from(years).sort().reverse().forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y; opt.innerText = y + " 年度";
+                    selector.appendChild(opt);
+                });
+
+                render();
+            } catch (e) {
+                console.error("Initialization failed:", e);
+            }
+        }
+
+        function render() {
+            const selectedYear = document.getElementById('year-selector').value;
+            const container = document.getElementById('printer-container');
+            container.innerHTML = "";
+
+            fullData.forEach(printer => {
+                const yearInfo = printer.history.find(h => h.year === selectedYear);
+                if (!yearInfo) return;
+
+                const section = document.createElement('div');
+                section.className = "glass-panel rounded-[3rem] p-12 overflow-hidden border-white/10";
+
+                section.innerHTML = `
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-8">
+                        <div>
+                            <h3 class="text-4xl font-black text-white mb-3">${printer.location}</h3>
+                            <p class="text-2xl text-indigo-300 font-mono opacity-80">${printer.ip} · ${printer.model}</p>
+                        </div>
+                        <div class="bg-white/5 p-6 rounded-3xl border border-white/10 text-right min-w-[240px]">
+                            <p class="text-sm font-black text-slate-500 uppercase tracking-widest mb-2">年度累計總量</p>
+                            <p class="text-6xl font-black text-white">${yearInfo.year_total.total.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-center">
+                            <thead>
+                                <tr class="text-base font-black uppercase tracking-widest text-slate-500 border-b border-white/10">
+                                    <th class="py-6 text-left pl-6">月份</th>
+                                    <th class="py-6 text-blue-400">列印 (Print)</th>
+                                    <th class="py-6 text-emerald-400">影印 (Copy)</th>
+                                    <th class="py-6 text-amber-400">傳真 (Fax)</th>
+                                    <th class="py-6 text-white bg-white/5 rounded-t-2xl">單月合計</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5">
+                                ${yearInfo.months.map(m => `
+                                    <tr class="row-hover transition-colors">
+                                        <td class="py-7 text-left pl-6 text-2xl font-bold text-slate-200">${parseInt(m.month)}月</td>
+                                        <td class="py-7 text-data text-blue-400/90">${m.metrics.print.toLocaleString()}</td>
+                                        <td class="py-7 text-data text-emerald-400/90">${m.metrics.copy.toLocaleString()}</td>
+                                        <td class="py-7 text-data text-amber-400/90">${m.metrics.fax.toLocaleString()}</td>
+                                        <td class="py-7 text-data text-white bg-white/5">${m.metrics.total.toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                container.appendChild(section);
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

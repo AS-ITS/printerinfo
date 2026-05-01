@@ -107,7 +107,7 @@ func main() {
 	// 4. 查詢 dashboard_stats 視圖（當前狀態）
 	dashRows, err := db.Query(`
 		SELECT id, ip_address, location, model, unit, printer_status,
-		       toner_percent, ink_percent, paper_percent, COALESCE(warranty_days, 0), recent_incidents_30d
+		       toner_percent, ink_percent, paper_percent, warranty_days, recent_incidents_30d
 		FROM dashboard_stats
 		ORDER BY unit, ip_address
 	`)
@@ -170,13 +170,20 @@ func main() {
 
 	for dashRows.Next() {
 		var dp DashboardPrinter
+		var warrantyDays sql.NullInt64
 		err := dashRows.Scan(
 			&dp.ID, &dp.IPAddress, &dp.Location, &dp.Model, &dp.Unit, &dp.PrinterState,
 			&dp.TonerPercent, &dp.InkPercent, &dp.PaperPercent,
-			&dp.WarrantyDays, &dp.RecentIncidents,
+			&warrantyDays, &dp.RecentIncidents,
 		)
 		if err != nil {
 			log.Fatal("儀表板讀取失敗:", err)
+		}
+		// 若資料庫中 warranty_days 為 NULL，則轉換為 0
+		if warrantyDays.Valid {
+			dp.WarrantyDays = int(warrantyDays.Int64)
+		} else {
+			dp.WarrantyDays = 0
 		}
 
 		dp.Supplies = supplyMap[dp.ID]
