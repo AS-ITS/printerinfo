@@ -134,90 +134,94 @@
             </div>
         </header>
 
-        <!-- 概況條 -->
-        <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        </div>
+        <div class="flex flex-col lg:flex-row gap-6 items-start">
+            <!-- 單位選單 -->
+            <aside id="unit-filter-section" class="glass-panel rounded-2xl p-4 w-full lg:w-64 lg:sticky lg:top-6 hidden">
+                <p class="text-xs text-slate-400 uppercase tracking-wider mb-3 font-bold">單位選單</p>
+                <div id="unit-filter-buttons" class="flex lg:flex-col flex-wrap gap-2">
+                </div>
+            </aside>
 
-        <!-- 每日趨勢圖 -->
-        <div id="trend-section" class="glass-panel rounded-2xl p-6 mb-8">
-            <h3 class="text-lg font-bold mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M12 17h.01"></path>
-                </svg>
-                每日總印量趨勢
-            </h3>
-            <div class="chart-container">
-                <canvas id="trend-chart"></canvas>
-            </div>
-        </div>
+            <main class="flex-1 min-w-0 w-full">
+                <!-- 概況條 -->
+                <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                </div>
 
-        <!-- 單位列印狀況 -->
-        <div id="unit-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
-            <h3 class="text-lg font-bold mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-4z"></path>
-                </svg>
-                依單位列印狀況
-            </h3>
-            <div class="chart-container">
-                <canvas id="unit-chart"></canvas>
-            </div>
-        </div>
+                <!-- 每日趨勢圖 -->
+                <div id="trend-section" class="glass-panel rounded-2xl p-6 mb-8">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M12 17h.01"></path>
+                        </svg>
+                        每日總印量趨勢
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="trend-chart"></canvas>
+                    </div>
+                </div>
 
-        <!-- 耗材警告列表 -->
-        <div id="supply-warnings" class="mb-8 hidden">
-            <h3 class="text-lg font-bold mb-4 flex items-center text-amber-400">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                </svg>
-                耗材警告
-            </h3>
-            <div id="supply-warnings-list" class="space-y-2">
-            </div>
-        </div>
+                <!-- 單位列印狀況 -->
+                <div id="unit-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-4z"></path>
+                        </svg>
+                        依單位列印狀況
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="unit-chart"></canvas>
+                    </div>
+                </div>
 
-        <!-- 單位篩選 -->
-        <div id="unit-filter-section" class="glass-panel rounded-2xl p-4 mb-6 hidden">
-            <p class="text-xs text-slate-400 uppercase tracking-wider mb-3 font-bold">依單位篩選</p>
-            <div id="unit-filter-buttons" class="flex flex-wrap gap-2">
-            </div>
-        </div>
+                <!-- 耗材警告列表 -->
+                <div id="supply-warnings" class="mb-8 hidden">
+                    <h3 class="text-lg font-bold mb-4 flex items-center text-amber-400">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        耗材警告
+                    </h3>
+                    <div id="supply-warnings-list" class="space-y-2">
+                    </div>
+                </div>
 
-        <!-- 印表機條列清單 -->
-        <div id="printer-grid" class="glass-panel rounded-2xl overflow-hidden mb-8">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
-                        <th class="px-4 py-3 font-bold text-left">狀態</th>
-                        <th class="px-4 py-3 font-bold text-left">單位</th>
-                        <th class="px-4 py-3 font-bold text-left">印表機</th>
-                        <th class="px-4 py-3 font-bold text-left hidden md:table-cell">型號</th>
-                        <th class="px-4 py-3 font-bold text-center hidden md:table-cell">彩色</th>
-                        <th class="px-4 py-3 font-bold text-left hidden lg:table-cell">IP</th>
-                        <th class="px-4 py-3 font-bold text-right">今日</th>
-                        <th class="px-4 py-3 font-bold text-right hidden md:table-cell">碳粉</th>
-                        <th class="px-4 py-3 font-bold text-right hidden md:table-cell">墨水</th>
-                        <th class="px-4 py-3 font-bold text-right hidden lg:table-cell">紙張</th>
-                        <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">保固</th>
-                        <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">累計</th>
-                        <th class="px-4 py-3 font-bold text-center">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="printer-table-body">
-                </tbody>
-            </table>
-        </div>
+                <!-- 印表機條列清單 -->
+                <div id="printer-grid" class="glass-panel rounded-2xl overflow-hidden mb-8">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
+                                <th class="px-4 py-3 font-bold text-left">狀態</th>
+                                <th class="px-4 py-3 font-bold text-left">單位</th>
+                                <th class="px-4 py-3 font-bold text-left">印表機</th>
+                                <th class="px-4 py-3 font-bold text-left hidden md:table-cell">型號</th>
+                                <th class="px-4 py-3 font-bold text-center hidden md:table-cell">彩色</th>
+                                <th class="px-4 py-3 font-bold text-left hidden lg:table-cell">IP</th>
+                                <th class="px-4 py-3 font-bold text-right">今日</th>
+                                <th class="px-4 py-3 font-bold text-right hidden md:table-cell">碳粉</th>
+                                <th class="px-4 py-3 font-bold text-right hidden md:table-cell">墨水</th>
+                                <th class="px-4 py-3 font-bold text-right hidden lg:table-cell">紙張</th>
+                                <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">保固</th>
+                                <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">累計</th>
+                                <th class="px-4 py-3 font-bold text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="printer-table-body">
+                        </tbody>
+                    </table>
+                </div>
 
-        <!-- 近期故障記錄 -->
-        <div id="incidents-section" class="glass-panel rounded-2xl p-6 mb-8 hidden">
-            <h3 class="text-lg font-bold mb-4 flex items-center">
-                <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                近期故障記錄（30 天）
-            </h3>
-            <div id="incidents-list" class="space-y-2">
-            </div>
+                <!-- 近期故障記錄 -->
+                <div id="incidents-section" class="glass-panel rounded-2xl p-6 mb-8 hidden">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        近期故障記錄（30 天）
+                    </h3>
+                    <div id="incidents-list" class="space-y-2">
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -242,6 +246,7 @@
         let cachedMetrics = {};
         let cachedSupplies = {};
         let cachedIncidents = [];
+        let currentFilterUnit = 'all';
 
         // == 儀表板渲染（需要登入後才呼叫） ==
         async function renderDashboard() {
@@ -289,20 +294,40 @@
                 // 建構 dashboard 用的印表機資料（含今日印量、trend、supplies、incidents）
                 const printers = rawPrinters.map(p => buildPrinterData(p));
 
-                // 儲存至全域快取，供 filterByUnit() 篩選使用
+                // 儲存完整資料，單位切換時從快取重繪，不重新查詢 Supabase
                 cachedPrinters = printers;
+                currentFilterUnit = 'all';
 
-                const summary = computeSummary(printers);
-                renderSummary(summary);
-                renderTrendChart(printers);
-                renderUnitChart(printers);
-                renderPrinters(printers);
-                renderSupplyWarnings(printers);
-                renderIncidents(cachedIncidents);
                 renderUnitFilter(printers);
+                renderScopedDashboard();
             } catch (e) {
                 console.error("載入失敗:", e);
             }
+        }
+
+        function getScopedPrinters() {
+            return currentFilterUnit === 'all'
+                ? cachedPrinters
+                : cachedPrinters.filter(p => p.unit === currentFilterUnit);
+        }
+
+        function getScopedIncidents(printers) {
+            if (currentFilterUnit === 'all') return cachedIncidents;
+            const printerIds = new Set(printers.map(p => p.id));
+            return cachedIncidents.filter(inc => printerIds.has(inc.printer_id));
+        }
+
+        function renderScopedDashboard() {
+            const scopedPrinters = getScopedPrinters();
+            const scopedIncidents = getScopedIncidents(scopedPrinters);
+
+            renderSummary(computeSummary(scopedPrinters));
+            renderTrendChart(scopedPrinters);
+            renderUnitChart(scopedPrinters);
+            renderSupplyWarnings(scopedPrinters);
+            renderPrinters(scopedPrinters);
+            renderIncidents(scopedIncidents);
+            renderUnitFilter(cachedPrinters);
         }
 
         function computeSummary(printers) {
@@ -570,9 +595,6 @@
             });
         }
 
-        // == 單位篩選 ==
-        let currentFilterUnit = 'all';
-
         function renderUnitFilter(printers) {
             const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
             if (units.length === 0) return;
@@ -581,15 +603,26 @@
             const buttons = document.getElementById('unit-filter-buttons');
             section.classList.remove('hidden');
 
-            buttons.innerHTML = `<button onclick="filterByUnit('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${currentFilterUnit === 'all' ? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}">全部</button>` +
-                units.map(u => `<button onclick="filterByUnit('${u}')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${currentFilterUnit === u ? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}">${u}</button>`).join('');
+            buttons.innerHTML = '';
+            [{ value: 'all', label: '全部' }, ...units.map(u => ({ value: u, label: u }))].forEach(item => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.unit = item.value;
+                button.textContent = item.label;
+                button.className = [
+                    'w-full lg:text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
+                    currentFilterUnit === item.value
+                        ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-950/30'
+                        : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                ].join(' ');
+                button.addEventListener('click', () => filterByUnit(item.value));
+                buttons.appendChild(button);
+            });
         }
 
         function filterByUnit(unit) {
             currentFilterUnit = unit;
-            const filtered = unit === 'all' ? cachedPrinters : cachedPrinters.filter(p => p.unit === unit);
-            renderPrinters(filtered);
-            renderUnitFilter(cachedPrinters);
+            renderScopedDashboard();
         }
 
         // == 耗材警告渲染 ==
@@ -697,8 +730,8 @@
                         <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs ${warrantyClass}">${warrantyText}</span></td>
                         <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300">${(p.total_all_time || 0).toLocaleString()}</span></td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <button onclick="showHistory(${idx})" class="text-indigo-400 hover:text-indigo-300 text-xs mr-2">歷史</button>
-                            <button onclick="showSupplyMonitor(${idx})" class="text-emerald-400 hover:text-emerald-300 text-xs">耗材</button>
+                            <button onclick="showHistory(${p.id})" class="text-indigo-400 hover:text-indigo-300 text-xs mr-2">歷史</button>
+                            <button onclick="showSupplyMonitor(${p.id})" class="text-emerald-400 hover:text-emerald-300 text-xs">耗材</button>
                         </td>
                     </tr>
                 `;
@@ -714,7 +747,8 @@
 
         // == 輔助函數 ==
         function getSupplyPercent(p, type) {
-            const supply = (p.supplies || []).find(s => s.type === type);
+            const typeIds = { toner: 0, ink: 1, paper: 2 };
+            const supply = (p.supplies || []).find(s => s.type === type || s.type === typeIds[type]);
             return supply ? supply.percent : 100;
         }
 
@@ -735,8 +769,9 @@
         }
 
         // == 歷史彈窗 ==
-        function showHistory(index) {
-            const p = cachedPrinters[index];
+        function showHistory(printerId) {
+            const p = cachedPrinters.find(printer => printer.id === printerId);
+            if (!p) return;
             document.getElementById('modal-title').innerText = `${p.location} 歷史數據統計`;
             document.getElementById('modal-subtitle').innerText = `${p.ip_address} (${p.model})`;
 
@@ -829,8 +864,9 @@
         }
 
         // == 耗材監測彈窗 ==
-        function showSupplyMonitor(index) {
-            const p = cachedPrinters[index];
+        function showSupplyMonitor(printerId) {
+            const p = cachedPrinters.find(printer => printer.id === printerId);
+            if (!p) return;
             const supplies = p.supplies || [];
 
             let html = `
