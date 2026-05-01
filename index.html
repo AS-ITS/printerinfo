@@ -289,6 +289,9 @@
                 // 建構 dashboard 用的印表機資料（含今日印量、trend、supplies、incidents）
                 const printers = rawPrinters.map(p => buildPrinterData(p));
 
+                // 儲存至全域快取，供 filterByUnit() 篩選使用
+                cachedPrinters = printers;
+
                 const summary = computeSummary(printers);
                 renderSummary(summary);
                 renderTrendChart(printers);
