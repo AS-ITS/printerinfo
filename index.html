@@ -593,9 +593,22 @@
             });
 
             const units = Object.keys(unitMap).sort();
-            const dailyData = units.map(u => unitMap[u].daily);
-            const monthlyData = units.map(u => unitMap[u].monthly);
-            const yearlyData = units.map(u => unitMap[u].yearly);
+            const palette = [
+                '#6366f1', '#22d3ee', '#fbbf24', '#34d399',
+                '#f472b6', '#a78bfa', '#fb7185', '#60a5fa',
+                '#c084fc', '#2dd4bf', '#f97316', '#84cc16'
+            ];
+            const unitDatasets = units.map((unit, idx) => {
+                const color = palette[idx % palette.length];
+                return {
+                    label: unit,
+                    data: [unitMap[unit].daily, unitMap[unit].monthly, unitMap[unit].yearly],
+                    backgroundColor: `${color}99`,
+                    borderColor: color,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                };
+            });
 
             destroyUnitChart();
             if (units.length === 0) {
@@ -608,40 +621,21 @@
             unitChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: units,
-                    datasets: [
-                        {
-                            label: '今日',
-                            data: dailyData,
-                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                            borderColor: '#6366f1',
-                            borderWidth: 1,
-                            borderRadius: 4,
-                        },
-                        {
-                            label: '本月',
-                            data: monthlyData,
-                            backgroundColor: 'rgba(34, 211, 238, 0.7)',
-                            borderColor: '#22d3ee',
-                            borderWidth: 1,
-                            borderRadius: 4,
-                        },
-                        {
-                            label: '今年',
-                            data: yearlyData,
-                            backgroundColor: 'rgba(251, 191, 36, 0.7)',
-                            borderColor: '#fbbf24',
-                            borderWidth: 1,
-                            borderRadius: 4,
-                        }
-                    ]
+                    labels: ['今日', '本月', '今年'],
+                    datasets: unitDatasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } },
+                            onClick: (_event, legendItem) => {
+                                const unit = legendItem?.text;
+                                if (unit && units.includes(unit)) {
+                                    filterByUnit(unit);
+                                }
+                            }
                         },
                         tooltip: {
                             backgroundColor: 'rgba(15, 23, 42, 0.9)',
