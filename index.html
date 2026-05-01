@@ -130,6 +130,11 @@
                 <p class="text-slate-400 font-medium">全院印表機監控系統 · 歷史數據整合版</p>
             </div>
             <div class="flex items-center gap-4">
+                <button id="dashboard-refresh-btn"
+                    class="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-sm font-bold transition-colors border border-indigo-400/30"
+                    onclick="handleDashboardRefresh()">
+                    重整
+                </button>
                 <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
             </div>
         </header>
@@ -166,10 +171,13 @@
                         <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-4z"></path>
                         </svg>
-                        依單位列印狀況
+                        <span id="unit-chart-title">依單位列印狀況</span>
                     </h3>
                     <div class="chart-container">
                         <canvas id="unit-chart"></canvas>
+                    </div>
+                    <div id="unit-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
+                        本年度尚無列印紀錄
                     </div>
                 </div>
 
@@ -247,10 +255,21 @@
         let cachedSupplies = {};
         let cachedIncidents = [];
         let currentFilterUnit = 'all';
+        let dashboardDataLoaded = false;
+        let dashboardLoadedUserKey = null;
+        let dashboardLoading = false;
 
         // == 儀表板渲染（需要登入後才呼叫） ==
-        async function renderDashboard() {
-            document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
+        async function renderDashboard(options = {}) {
+            const force = Boolean(options.force);
+            const userKey = currentUser?.id || currentUser?.email || 'anonymous';
+            if (!force && dashboardDataLoaded && dashboardLoadedUserKey === userKey) {
+                renderScopedDashboard();
+                return;
+            }
+            if (dashboardLoading) return;
+            dashboardLoading = true;
+            setRefreshLoading(true);
 
             try {
                 const { data: rawPrinters } = await supabaseClient
@@ -296,13 +315,32 @@
 
                 // 儲存完整資料，單位切換時從快取重繪，不重新查詢 Supabase
                 cachedPrinters = printers;
-                currentFilterUnit = 'all';
+                if (!force) currentFilterUnit = 'all';
+                dashboardDataLoaded = true;
+                dashboardLoadedUserKey = userKey;
 
                 renderUnitFilter(printers);
                 renderScopedDashboard();
+                document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
             } catch (e) {
                 console.error("載入失敗:", e);
+            } finally {
+                dashboardLoading = false;
+                setRefreshLoading(false);
             }
+        }
+
+        function setRefreshLoading(isLoading) {
+            const btn = document.getElementById('dashboard-refresh-btn');
+            if (!btn) return;
+            btn.disabled = isLoading;
+            btn.textContent = isLoading ? '讀取中...' : '重整';
+            btn.classList.toggle('opacity-60', isLoading);
+            btn.classList.toggle('cursor-not-allowed', isLoading);
+        }
+
+        function handleDashboardRefresh() {
+            renderDashboard({ force: true });
         }
 
         function getScopedPrinters() {
@@ -323,7 +361,7 @@
 
             renderSummary(computeSummary(scopedPrinters));
             renderTrendChart(scopedPrinters);
-            renderUnitChart(scopedPrinters);
+            renderScopedUnitChart(scopedPrinters);
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
             renderIncidents(scopedIncidents);
@@ -496,12 +534,43 @@
         // == 依單位列印狀況圖表 ==
         let unitChartInstance = null;
 
-        function renderUnitChart(printers) {
+        function destroyUnitChart() {
+            if (unitChartInstance) {
+                unitChartInstance.destroy();
+                unitChartInstance = null;
+            }
+            if (typeof Chart !== 'undefined' && Chart.instances) {
+                Object.keys(Chart.instances).forEach(key => {
+                    const chart = Chart.instances[key];
+                    if (chart && chart.canvas && chart.canvas.id === 'unit-chart') chart.destroy();
+                });
+            }
+        }
+
+        function setUnitChartEmpty(message, isEmpty) {
+            const empty = document.getElementById('unit-chart-empty');
+            const canvas = document.getElementById('unit-chart');
+            if (!empty || !canvas) return;
+            empty.textContent = message;
+            empty.classList.toggle('hidden', !isEmpty);
+            canvas.classList.toggle('hidden', isEmpty);
+        }
+
+        function renderScopedUnitChart(printers) {
+            if (currentFilterUnit === 'all') {
+                document.getElementById('unit-chart-title').textContent = '依單位列印狀況';
+                renderUnitAggregationChart(printers);
+                return;
+            }
+            document.getElementById('unit-chart-title').textContent = `${currentFilterUnit}｜本年度每月印量`;
+            renderPrinterMonthlyChart(printers);
+        }
+
+        function renderUnitAggregationChart(printers) {
             const unitMap = {};
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
-            const todayStr = now.toISOString().substring(0, 10);
 
             printers.forEach(p => {
                 const unit = p.unit;
@@ -529,12 +598,13 @@
             const monthlyData = units.map(u => unitMap[u].monthly);
             const yearlyData = units.map(u => unitMap[u].yearly);
 
+            destroyUnitChart();
+            if (units.length === 0) {
+                setUnitChartEmpty('沒有可顯示的單位資料', true);
+                return;
+            }
+            setUnitChartEmpty('', false);
             const ctx = document.getElementById('unit-chart').getContext('2d');
-            if (unitChartInstance) { unitChartInstance.destroy(); unitChartInstance = null; }
-            Object.keys(Chart.instances).forEach(key => {
-                const chart = Chart.instances[key];
-                if (chart && chart.canvas && chart.canvas.id === 'unit-chart') chart.destroy();
-            });
 
             unitChartInstance = new Chart(ctx, {
                 type: 'bar',
@@ -573,6 +643,77 @@
                     plugins: {
                         legend: {
                             labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' }, beginAtZero: true },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderPrinterMonthlyChart(printers) {
+            const currentYear = new Date().getFullYear();
+            const monthLabels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
+            const palette = [
+                '#6366f1', '#22d3ee', '#fbbf24', '#34d399',
+                '#f472b6', '#a78bfa', '#fb7185', '#60a5fa',
+                '#c084fc', '#2dd4bf', '#f97316', '#84cc16'
+            ];
+
+            const datasets = printers.map((p, idx) => {
+                const monthly = Array(12).fill(0);
+                (p.trend || []).forEach(row => {
+                    const date = new Date((row.recorded_at || '').substring(0, 10));
+                    if (Number.isNaN(date.getTime()) || date.getFullYear() !== currentYear) return;
+                    monthly[date.getMonth()] += Math.max(0, row.daily_total || row.total || 0);
+                });
+                const color = palette[idx % palette.length];
+                return {
+                    label: p.location || p.ip_address || `印表機 ${idx + 1}`,
+                    data: monthly,
+                    backgroundColor: `${color}99`,
+                    borderColor: color,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                };
+            });
+
+            const hasData = datasets.some(ds => ds.data.some(v => v > 0));
+            destroyUnitChart();
+            if (!hasData) {
+                setUnitChartEmpty('本年度尚無列印紀錄', true);
+                return;
+            }
+            setUnitChartEmpty('', false);
+
+            const ctx = document.getElementById('unit-chart').getContext('2d');
+            unitChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: monthLabels,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
                         },
                         tooltip: {
                             backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -714,7 +855,8 @@
                         <td class="px-4 py-3"><div class="status-dot ${statusClass}" title="${p.printer_status}"></div></td>
                         <td class="px-4 py-3 text-slate-300 text-xs">${p.unit || '-'}</td>
                         <td class="px-4 py-3">
-                            <div class="font-bold text-white">${p.location}</div>
+                            <div class="font-bold text-white">${p.unit || '-'}</div>
+                            <div class="text-[11px] text-slate-500">${p.location || '-'}</div>
                             <div class="text-[11px] text-slate-500 md:hidden">${p.ip_address}</div>
                         </td>
                         <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model}</td>
