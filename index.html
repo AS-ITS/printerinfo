@@ -171,7 +171,7 @@
                         <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m4-14v14m4-10v10M7 13v8M3 17v4"></path>
                         </svg>
-                        年度總印量統計
+                        <span id="yearly-chart-title">年度總印量統計</span>
                     </h3>
                     <div class="chart-container">
                         <canvas id="yearly-chart"></canvas>
@@ -574,15 +574,15 @@
 
         function renderYearlyStatsChart(printers) {
             const section = document.getElementById('yearly-chart-section');
+            const title = document.getElementById('yearly-chart-title');
             if (!section) return;
 
-            if (currentFilterUnit !== 'all') {
-                section.classList.add('hidden');
-                destroyYearlyChart();
-                return;
-            }
-
             section.classList.remove('hidden');
+            if (title) {
+                title.textContent = currentFilterUnit === 'all'
+                    ? '年度總印量統計'
+                    : `${currentFilterUnit}｜年度總印量統計`;
+            }
             const yearMap = {};
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
@@ -607,7 +607,7 @@
                 data: {
                     labels: years,
                     datasets: [{
-                        label: '年度總印量',
+                        label: currentFilterUnit === 'all' ? '年度總印量' : `${currentFilterUnit} 年度總印量`,
                         data: years.map(year => yearMap[year]),
                         backgroundColor: 'rgba(129, 140, 248, 0.7)',
                         borderColor: '#818cf8',
