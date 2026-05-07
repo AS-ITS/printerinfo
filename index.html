@@ -334,14 +334,14 @@
                 dashboardDataLoaded = true;
                 dashboardLoadedUserKey = userKey;
 
-                // 找出 daily_stats 中最新的日期，該日有資料的單位顯示不同顏色
-                const allDates = Object.values(cachedMetrics).flat().map(m => m.recorded_at).filter(Boolean).sort().reverse();
-                const latestDate = allDates[0] ? allDates[0].substring(0, 10) : null;
+                // 依據當天日期判斷哪些單位有資料
+                const todayLocal = new Date();
+                const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
                 const unitsWithTodayData = new Map();
                 const printerUnitMapDashboard = new Map(printers.map(p => [p.ip_address, p.unit]));
                 for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                    const hasLatest = metrics.some(m => (m.recorded_at || '').substring(0, 10) === latestDate);
-                    if (hasLatest) {
+                    const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === todayStr);
+                    if (hasToday) {
                         const unit = printerUnitMapDashboard.get(ip);
                         if (unit) unitsWithTodayData.set(unit, true);
                     }
@@ -387,14 +387,14 @@
             const scopedPrinters = getScopedPrinters();
             const scopedIncidents = getScopedIncidents(scopedPrinters);
 
-            // 計算哪些單位有最新日期的資料
-            const allDates = Object.values(cachedMetrics).flat().map(m => m.recorded_at).filter(Boolean).sort().reverse();
-            const latestDate = allDates[0] ? allDates[0].substring(0, 10) : null;
+            // 計算哪些單位有今天的資料
+            const todayLocal = new Date();
+            const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
             const unitsWithTodayData = new Map();
             const printerUnitMap = new Map(cachedPrinters.map(p => [p.ip_address, p.unit]));
             for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                const hasLatest = metrics.some(m => (m.recorded_at || '').substring(0, 10) === latestDate);
-                if (hasLatest) {
+                const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === todayStr);
+                if (hasToday) {
                     const unit = printerUnitMap.get(ip);
                     if (unit) unitsWithTodayData.set(unit, true);
                 }
@@ -893,7 +893,7 @@
                 if (currentFilterUnit === item.value) {
                     colorClass = 'text-white';
                 } else {
-                    colorClass = hasToday ? 'text-green-400' : 'text-slate-400';
+                    colorClass = hasToday ? 'text-green-400' : 'text-white';
                 }
                 const bgClass = currentFilterUnit === item.value
                     ? 'bg-indigo-500 shadow-lg shadow-indigo-950/30'
