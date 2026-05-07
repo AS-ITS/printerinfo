@@ -334,20 +334,7 @@
                 dashboardDataLoaded = true;
                 dashboardLoadedUserKey = userKey;
 
-                // 依據當天日期判斷哪些單位有資料
-                const todayLocal = new Date();
-                const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
-                const unitsWithTodayData = new Map();
-                const printerUnitMapDashboard = new Map(printers.map(p => [p.ip_address, p.unit]));
-                for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                    const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === todayStr);
-                    if (hasToday) {
-                        const unit = printerUnitMapDashboard.get(ip);
-                        if (unit) unitsWithTodayData.set(unit, true);
-                    }
-                }
-
-                renderUnitFilter(printers, unitsWithTodayData);
+                renderUnitFilter(printers, getUnitsWithTodayPrintData(printers));
                 renderScopedDashboard();
                 document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
             } catch (e) {
@@ -387,18 +374,8 @@
             const scopedPrinters = getScopedPrinters();
             const scopedIncidents = getScopedIncidents(scopedPrinters);
 
-            // 計算哪些單位有今天的資料
-            const todayLocal = new Date();
-            const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
-            const unitsWithTodayData = new Map();
-            const printerUnitMap = new Map(cachedPrinters.map(p => [p.ip_address, p.unit]));
-            for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === todayStr);
-                if (hasToday) {
-                    const unit = printerUnitMap.get(ip);
-                    if (unit) unitsWithTodayData.set(unit, true);
-                }
-            }
+            // 計算哪些單位今天至少有一台印表機的印量大於 0
+            const unitsWithTodayPrintData = getUnitsWithTodayPrintData(cachedPrinters);
 
             renderSummary(computeSummary(scopedPrinters));
             renderTrendChart(scopedPrinters);
@@ -407,7 +384,29 @@
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
             renderIncidents(scopedIncidents);
-            renderUnitFilter(cachedPrinters, unitsWithTodayData);
+            renderUnitFilter(cachedPrinters, unitsWithTodayPrintData);
+        }
+
+        function getTodayDateString() {
+            const todayLocal = new Date();
+            return `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+        }
+
+        function getUnitsWithTodayPrintData(printers) {
+            const todayStr = getTodayDateString();
+            const unitsWithTodayPrintData = new Map();
+            const printerUnitMap = new Map(printers.map(p => [p.ip_address, p.unit]));
+            for (const [ip, metrics] of Object.entries(cachedMetrics)) {
+                const hasTodayPrintData = metrics.some(m =>
+                    (m.recorded_at || '').substring(0, 10) === todayStr &&
+                    Math.max(0, Number(m.daily_total) || 0) > 0
+                );
+                if (hasTodayPrintData) {
+                    const unit = printerUnitMap.get(ip);
+                    if (unit) unitsWithTodayPrintData.set(unit, true);
+                }
+            }
+            return unitsWithTodayPrintData;
         }
 
         function computeSummary(printers) {
@@ -874,7 +873,7 @@
             });
         }
 
-        function renderUnitFilter(printers, unitsWithTodayData) {
+        function renderUnitFilter(printers, unitsWithTodayPrintData) {
             const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
             if (units.length === 0) return;
 
@@ -888,7 +887,7 @@
                 button.type = 'button';
                 button.dataset.unit = item.value;
                 button.textContent = item.label;
-                const hasToday = item.value === 'all' ? false : (unitsWithTodayData.get(item.value) || false);
+                const hasToday = item.value === 'all' ? false : (unitsWithTodayPrintData.get(item.value) || false);
                 const colorClass = hasToday ? 'text-green-400' : 'text-white';
                 const bgClass = currentFilterUnit === item.value
                     ? 'bg-indigo-500 shadow-lg shadow-indigo-950/30'
