@@ -118,6 +118,62 @@ go run .\scripts\main.go
 
 目前前端主要是直接查 Supabase；`public/data.json` 主要用於部署流程或需要靜態資料快照的情境。
 
+## Windows 11 每 30 分鐘排程執行
+
+Windows 11 沒有內建 Unix cron，建議使用「工作排程器」建立每半小時執行一次的排程工作，用來定期執行 Go 腳本並更新 `public/data.json`。
+
+下列範例使用 `D:\myprograms\printerinfo` 作為專案路徑；如果專案放在其他位置，請替換成實際路徑。
+
+### 使用工作排程器介面
+
+1. 開啟「開始」選單，搜尋並啟動「工作排程器」。
+2. 在右側「動作」選擇「建立工作」。
+3. 在「一般」頁籤設定名稱，例如 `PrinterInfo Refresh`。
+4. 在「觸發程序」頁籤選擇「新增」：
+   - 開始工作：依排程
+   - 設定：每日
+   - 進階設定：勾選「重複工作間隔」，選擇 `30 分鐘`
+   - 持續時間：選擇 `無限期`
+   - 確認已勾選「啟用」
+5. 在「動作」頁籤選擇「新增」：
+   - 程式或指令碼：`powershell.exe`
+   - 新增引數：
+
+   ```powershell
+   -NoProfile -ExecutionPolicy Bypass -Command "$env:SUPABASE_DB_CONNECTION='<SUPABASE_DB_CONNECTION>'; Set-Location 'D:\myprograms\printerinfo'; go run .\scripts\main.go"
+   ```
+
+   - 起始於：
+
+   ```text
+   D:\myprograms\printerinfo
+   ```
+
+6. 儲存後可在工作排程器中對 `PrinterInfo Refresh` 按右鍵選擇「執行」，確認腳本可以成功產生或更新 `public/data.json`。
+
+### 使用 PowerShell 建立排程
+
+也可以用系統管理員身分開啟 PowerShell，執行下列指令建立每 30 分鐘執行一次的工作：
+
+```powershell
+$taskName = "PrinterInfo Refresh"
+$taskRun = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$env:SUPABASE_DB_CONNECTION=''<SUPABASE_DB_CONNECTION>''; Set-Location ''D:\myprograms\printerinfo''; go run .\scripts\main.go"'
+schtasks /Create /TN $taskName /SC MINUTE /MO 30 /TR $taskRun /F
+```
+
+常用管理指令：
+
+```powershell
+# 手動執行
+schtasks /Run /TN "PrinterInfo Refresh"
+
+# 查詢狀態
+schtasks /Query /TN "PrinterInfo Refresh" /V /FO LIST
+
+# 刪除排程
+schtasks /Delete /TN "PrinterInfo Refresh" /F
+```
+
 ## 部署流程
 
 `.github/workflows/deploy.yml` 會在下列情況執行：
