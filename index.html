@@ -334,7 +334,19 @@
                 dashboardDataLoaded = true;
                 dashboardLoadedUserKey = userKey;
 
-                renderUnitFilter(printers);
+                // 計算哪些單位有今天的資料
+                const todayDashboard = new Date().toISOString().substring(0, 10);
+                const unitsWithTodayData = new Map();
+                const printerUnitMapDashboard = new Map(printers.map(p => [p.ip_address, p.unit]));
+                for (const [ip, metrics] of Object.entries(cachedMetrics)) {
+                    const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === todayDashboard);
+                    if (hasToday) {
+                        const unit = printerUnitMapDashboard.get(ip);
+                        if (unit) unitsWithTodayData.set(unit, true);
+                    }
+                }
+
+                renderUnitFilter(printers, unitsWithTodayData);
                 renderScopedDashboard();
                 document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
             } catch (e) {
@@ -374,6 +386,18 @@
             const scopedPrinters = getScopedPrinters();
             const scopedIncidents = getScopedIncidents(scopedPrinters);
 
+            // 計算哪些單位有今天的資料
+            const today = new Date().toISOString().substring(0, 10);
+            const unitsWithTodayData = new Map();
+            const printerUnitMap = new Map(cachedPrinters.map(p => [p.ip_address, p.unit]));
+            for (const [ip, metrics] of Object.entries(cachedMetrics)) {
+                const hasToday = metrics.some(m => (m.recorded_at || '').substring(0, 10) === today);
+                if (hasToday) {
+                    const unit = printerUnitMap.get(ip);
+                    if (unit) unitsWithTodayData.set(unit, true);
+                }
+            }
+
             renderSummary(computeSummary(scopedPrinters));
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
@@ -381,7 +405,7 @@
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
             renderIncidents(scopedIncidents);
-            renderUnitFilter(cachedPrinters);
+            renderUnitFilter(cachedPrinters, unitsWithTodayData);
         }
 
         function computeSummary(printers) {
@@ -848,7 +872,7 @@
             });
         }
 
-        function renderUnitFilter(printers) {
+        function renderUnitFilter(printers, unitsWithTodayData) {
             const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
             if (units.length === 0) return;
 
@@ -862,11 +886,19 @@
                 button.type = 'button';
                 button.dataset.unit = item.value;
                 button.textContent = item.label;
+                const hasToday = item.value === 'all' ? false : (unitsWithTodayData.get(item.value) || false);
+                let colorClass;
+                if (currentFilterUnit === item.value) {
+                    colorClass = 'text-white';
+                } else {
+                    colorClass = hasToday ? 'text-green-400' : 'text-slate-400';
+                }
+                const bgClass = currentFilterUnit === item.value
+                    ? 'bg-indigo-500 shadow-lg shadow-indigo-950/30'
+                    : `bg-white/5 hover:bg-white/10 hover:text-white`;
                 button.className = [
                     'w-full lg:text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-                    currentFilterUnit === item.value
-                        ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-950/30'
-                        : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                    bgClass
                 ].join(' ');
                 button.addEventListener('click', () => filterByUnit(item.value));
                 buttons.appendChild(button);
