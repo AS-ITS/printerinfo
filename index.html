@@ -345,6 +345,8 @@
                         if (unit) unitsWithTodayData.set(unit, true);
                     }
                 }
+                console.log('daily_stats 最新日期:', Object.values(cachedMetrics).flat().map(m => m.recorded_at).sort().at(-1));
+                console.log('今天:', todayDashboard, '有資料的單位:', [...unitsWithTodayData.keys()]);
 
                 renderUnitFilter(printers, unitsWithTodayData);
                 renderScopedDashboard();
