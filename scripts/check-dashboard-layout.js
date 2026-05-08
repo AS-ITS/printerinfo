@@ -24,10 +24,11 @@ assert(renderPrintersStart !== -1 && isColorPrinterStart !== -1, 'renderPrinters
 
 const renderPrinters = html.slice(renderPrintersStart, isColorPrinterStart);
 assert(renderPrinters.includes("document.getElementById('printer-grid')"), 'renderPrinters must control printer grid visibility');
-assert(renderPrinters.includes("currentFilterUnit === 'all'"), 'renderPrinters must branch on all-units scope');
-assert(renderPrinters.includes("grid.classList.add('hidden')"), 'all-units scope must hide printer grid');
-assert(renderPrinters.includes("tbody.innerHTML = ''"), 'all-units scope must clear printer rows');
-assert(renderPrinters.includes("grid.classList.remove('hidden')"), 'selected-unit scope must show printer grid');
+assert(!renderPrinters.includes("currentFilterUnit === 'all'"), 'all-units scope must render the printer grid instead of leaving an empty layout cell');
+assert(renderPrinters.includes('!printers || printers.length === 0'), 'renderPrinters should only hide the printer grid when no printers are available');
+assert(renderPrinters.includes("grid.classList.add('hidden')"), 'empty printer data must hide printer grid');
+assert(renderPrinters.includes("tbody.innerHTML = ''"), 'empty printer data must clear printer rows');
+assert(renderPrinters.includes("grid.classList.remove('hidden')"), 'available printer data must show printer grid');
 assert(renderPrinters.includes("${isColorPrinter(p.model) ? '✔' : '✘'}"), 'color column behavior must remain intact');
 assert(renderPrinters.includes('${p.ip_address}</td>'), 'IP column behavior must remain intact');
 

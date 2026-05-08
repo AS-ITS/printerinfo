@@ -9,28 +9,496 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+        :root {
+            --accent: #fb6a7d;
+            --accent-strong: #f43f5e;
+            --accent-soft: #fff1f4;
+            --blue: #3b9cff;
+            --ink: #172033;
+            --muted: #64748b;
+            --surface: #edf1f5;
+            --panel: #ffffff;
+            --line: #d9dee7;
+            --line-soft: #eef1f5;
+            --chart-body-height: 312px;
+            --top-card-height: 358px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            width: 100%;
+            overflow-x: hidden;
+        }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);
-            background-attachment: fixed;
-            color: #f1f5f9;
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Plus Jakarta Sans", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background: var(--surface);
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        #login-screen {
+            padding: 24px;
+        }
+
+        #login-screen h1 {
+            line-height: 1.05;
+            overflow-wrap: anywhere;
         }
 
         .glass-panel {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            backdrop-filter: none;
         }
 
-        .card-hover:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(99, 102, 241, 0.4);
+        .dashboard-shell {
+            width: min(100%, 1560px);
+            margin: 0 auto;
+            padding: 0 14px 18px;
+            min-width: 0;
         }
 
-        /* 狀態指示燈 */
+        .dashboard-hero {
+            min-height: 130px;
+            margin: 0 -14px 12px;
+            padding: 24px 22px 8px 34px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 860px);
+            gap: 18px;
+            align-items: center;
+            color: #ffffff;
+            background: linear-gradient(90deg, #fb6a7d 0%, #f793a2 100%);
+            border-left: 14px solid #ff4058;
+        }
+
+        .dashboard-title {
+            margin: 0;
+            font-size: 48px;
+            line-height: 1.05;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .dashboard-subtitle {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .hero-side {
+            display: grid;
+            grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+            min-width: 0;
+        }
+
+        .date-panel {
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-height: 112px;
+        }
+
+        .date-panel-title {
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .date-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .date-field {
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.58);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .date-rule {
+            position: relative;
+            height: 4px;
+            margin: 18px 14px 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.76);
+        }
+
+        .date-rule::after {
+            content: "";
+            position: absolute;
+            right: -13px;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            border-radius: 999px;
+            background: #ffffff;
+            transform: translateY(-50%);
+            box-shadow: 0 2px 4px rgba(15, 23, 42, 0.12);
+        }
+
+        .dashboard-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        #dashboard-refresh-btn,
+        #signout-btn {
+            border: 1px solid rgba(255, 255, 255, 0.74) !important;
+            border-radius: 8px !important;
+            background: rgba(255, 255, 255, 0.16) !important;
+            color: #ffffff !important;
+            padding: 9px 13px !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            line-height: 1 !important;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+
+        #dashboard-refresh-btn:hover,
+        #signout-btn:hover {
+            background: rgba(255, 255, 255, 0.26) !important;
+            transform: translateY(-1px);
+        }
+
+        #last-update {
+            color: rgba(255, 255, 255, 0.88) !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            text-transform: none !important;
+        }
+
+        .summary-strip {
+            display: grid;
+            grid-template-columns: 1.25fr 1fr 1fr;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .summary-card {
+            min-height: 104px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            padding: 12px 14px;
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.08);
+        }
+
+        .summary-value {
+            margin: 0;
+            color: #d95f72;
+            font-size: 34px;
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .summary-primary .summary-value {
+            font-size: 38px;
+        }
+
+        .summary-label {
+            margin: 0;
+            color: #172033;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .summary-hint {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            gap: 12px;
+            align-items: start;
+            min-width: 0;
+        }
+
+        .dashboard-main-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(430px, 0.95fr);
+            grid-template-areas:
+                "trend details"
+                "unit yearly"
+                "warnings warnings"
+                "incidents incidents";
+            gap: 10px;
+            min-width: 0;
+        }
+
+        #trend-section { grid-area: trend; }
+        #yearly-chart-section { grid-area: yearly; }
+        #unit-chart-section { grid-area: unit; }
+        #printer-grid { grid-area: details; }
+        #supply-warnings { grid-area: warnings; }
+        #incidents-section { grid-area: incidents; }
+
+        #trend-section,
+        #yearly-chart-section,
+        #unit-chart-section,
+        #printer-grid,
+        #supply-warnings,
+        #incidents-section {
+            margin: 0 !important;
+            border-radius: 8px !important;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        #trend-section,
+        #yearly-chart-section,
+        #unit-chart-section,
+        #supply-warnings,
+        #incidents-section {
+            padding: 12px !important;
+        }
+
+        #trend-section h3,
+        #yearly-chart-section h3,
+        #unit-chart-section h3,
+        #supply-warnings h3,
+        #incidents-section h3 {
+            margin: 0 0 10px !important;
+            color: var(--accent-strong) !important;
+            font-size: 17px !important;
+            line-height: 1.2 !important;
+            font-weight: 800 !important;
+            letter-spacing: 0 !important;
+        }
+
+        #trend-section h3 svg,
+        #yearly-chart-section h3 svg,
+        #unit-chart-section h3 svg,
+        #supply-warnings h3 svg,
+        #incidents-section h3 svg {
+            color: var(--accent-strong) !important;
+            flex: 0 0 auto;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 252px;
+        }
+
+        #trend-section .chart-container {
+            height: var(--chart-body-height);
+        }
+
+        #printer-grid {
+            height: var(--top-card-height);
+            min-height: 0;
+            max-height: var(--top-card-height);
+            align-self: start;
+            width: 100%;
+            min-width: 0;
+            padding: 0 !important;
+            overflow-x: auto;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
+        #printer-grid table {
+            min-width: 940px;
+            color: var(--ink);
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        #printer-grid thead tr {
+            background: #f3f5f8 !important;
+            color: #334155 !important;
+            letter-spacing: 0 !important;
+        }
+
+        #printer-grid thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+        #printer-grid tbody tr {
+            border-color: var(--line-soft) !important;
+        }
+
+        #printer-grid tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        #printer-grid tbody tr:hover {
+            background: var(--accent-soft) !important;
+        }
+
+        #printer-grid .text-white,
+        #incidents-list .text-white,
+        #history-modal .text-white {
+            color: var(--ink) !important;
+        }
+
+        #printer-grid .text-slate-300,
+        #printer-grid .text-slate-400,
+        #printer-grid .text-slate-500,
+        #incidents-list .text-slate-400,
+        #incidents-list .text-slate-500,
+        #history-modal .text-slate-300,
+        #history-modal .text-slate-400,
+        #history-modal .text-slate-500 {
+            color: var(--muted) !important;
+        }
+
+        #printer-grid .text-indigo-400,
+        #history-modal .text-indigo-400 {
+            color: #2563eb !important;
+        }
+
+        #printer-grid .text-emerald-400,
+        #history-modal .text-emerald-400 {
+            color: #059669 !important;
+        }
+
+        #unit-filter-section {
+            position: sticky;
+            top: 12px;
+            width: 100%;
+            min-width: 0;
+            padding: 10px !important;
+            border-radius: 8px !important;
+        }
+
+        .filter-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 0 10px;
+            color: #606874;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .filter-title-icon {
+            width: 22px;
+            height: 22px;
+            color: #a5adb8;
+        }
+
+        #unit-filter-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .unit-filter-button {
+            position: relative;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 9px;
+            border: 1px solid #e4e7ec;
+            border-radius: 2px;
+            background: #d2d4d7;
+            color: #111827;
+            font-size: 13px;
+            line-height: 1.25;
+            font-weight: 800;
+            text-align: center;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .unit-filter-button:hover {
+            background: #c2c5ca;
+            border-color: #c2c5ca;
+        }
+
+        .unit-filter-button.is-active {
+            background: #2f3035;
+            border-color: #2f3035;
+            color: #ffffff;
+        }
+
+        .unit-filter-button.is-all {
+            grid-column: 1 / -1;
+            background: #f8fafc;
+            border-color: var(--line);
+            color: #334155;
+        }
+
+        .unit-filter-button.is-all.is-active {
+            background: var(--accent-strong);
+            border-color: var(--accent-strong);
+            color: #ffffff;
+        }
+
+        .unit-filter-button.has-data::after {
+            content: "";
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.86);
+        }
+
+        .supply-warning-card {
+            border-left: 4px solid;
+            border-radius: 8px !important;
+            background: #fff7ed !important;
+        }
+
+        #incidents-list > div {
+            border: 1px solid var(--line-soft);
+            border-radius: 8px !important;
+            background: #f8fafc !important;
+        }
+
         .status-dot {
             width: 12px;
             height: 12px;
@@ -38,20 +506,64 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .status-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
         }
 
-        .status-normal .status-dot { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-        .status-warning .status-dot { background: #eab308; box-shadow: 0 0 8px #eab308; }
-        .status-error .status-dot { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+        .status-text {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+        }
 
-        /* 耗材進度條 */
+        .supply-chip {
+            display: inline-flex;
+            min-width: 44px;
+            justify-content: flex-end;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .action-link {
+            border-bottom: 1px solid transparent;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .action-link:hover {
+            border-bottom-color: currentColor;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.58; }
+        }
+
+        .status-normal .status-dot,
+        .status-dot.status-normal {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+        }
+
+        .status-warning .status-dot,
+        .status-dot.status-warning {
+            background: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+
+        .status-error .status-dot,
+        .status-dot.status-error {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
         .supply-bar {
             height: 6px;
             border-radius: 3px;
-            background: rgba(255, 255, 255, 0.1);
+            background: #e5e7eb;
             overflow: hidden;
         }
 
@@ -61,50 +573,307 @@
             transition: width 0.5s ease;
         }
 
-        /* 滾動條美化 */
+        #history-modal .glass-panel {
+            background: #ffffff;
+            border: 1px solid var(--line);
+            color: var(--ink);
+            width: min(100%, 960px);
+        }
+
         ::-webkit-scrollbar {
             width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
+            background: #eef2f7;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: rgba(99, 102, 241, 0.5);
-            border-radius: 10px;
+            background: #aeb7c4;
+            border-radius: 999px;
         }
 
-        /* 概況條 */
-        .summary-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            transition: background 0.2s;
+        @media (max-width: 1220px) {
+            .dashboard-hero {
+                grid-template-columns: 1fr;
+                padding-right: 22px;
+            }
+
+            .hero-side {
+                grid-template-columns: 270px minmax(0, 1fr);
+            }
+
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+
+            #unit-filter-section {
+                position: static;
+                order: -1;
+            }
+
+            #unit-filter-buttons {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+
+            .dashboard-main-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                grid-template-areas:
+                    "trend yearly"
+                    "unit unit"
+                    "details details"
+                    "warnings warnings"
+                    "incidents incidents";
+            }
         }
 
-        .summary-card:hover {
-            background: rgba(255, 255, 255, 0.06);
+        @media (max-width: 980px) {
+            .dashboard-hero {
+                padding: 22px 18px 14px 28px;
+            }
+
+            .hero-side {
+                grid-template-columns: 1fr;
+            }
+
+            .date-panel {
+                min-height: 96px;
+            }
+
+            .date-rule {
+                margin-top: 14px;
+            }
+
+            .summary-strip {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .summary-card {
+                min-height: 92px;
+            }
+
+            .summary-value,
+            .summary-primary .summary-value {
+                font-size: 30px;
+            }
+
+            .dashboard-main-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "trend"
+                    "details"
+                    "unit"
+                    "yearly"
+                    "warnings"
+                    "incidents";
+            }
+
+            .chart-container,
+            #trend-section .chart-container {
+                height: 280px;
+            }
+
+            #printer-grid {
+                height: 340px;
+                max-height: 340px;
+            }
         }
 
-        /* 耗材警告卡片 */
-        .supply-warning-card {
-            border-left: 3px solid;
+        @media (max-width: 760px) {
+            .dashboard-shell {
+                padding: 0 10px 14px;
+            }
+
+            .dashboard-hero {
+                margin: 0 -10px 10px;
+                padding: 20px 16px 14px 22px;
+                border-left-width: 10px;
+            }
+
+            .dashboard-title {
+                font-size: 32px;
+            }
+
+            .hero-side {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-strip {
+                grid-template-columns: 1fr;
+                min-width: 0;
+            }
+
+            .date-fields {
+                grid-template-columns: 1fr;
+            }
+
+            .date-rule {
+                display: none;
+            }
+
+            .dashboard-main-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "trend"
+                    "details"
+                    "unit"
+                    "yearly"
+                    "warnings"
+                    "incidents";
+            }
+
+            .chart-container {
+                height: 230px;
+            }
+
+            #printer-grid {
+                height: 320px;
+                max-height: 320px;
+            }
+
+            #trend-section .chart-container {
+                height: 280px;
+            }
         }
 
-        /* 趨勢圖容器 */
-        .chart-container {
-            position: relative;
-            height: 220px;
-            width: 100%;
+        @media (max-width: 520px) {
+            #login-screen {
+                padding: 18px;
+            }
+
+            #login-screen h1 {
+                font-size: 32px !important;
+            }
+
+            #google-login-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .dashboard-shell {
+                padding: 0 8px 12px;
+            }
+
+            .dashboard-hero {
+                margin: 0 -8px 8px;
+                padding: 18px 12px 12px 18px;
+                border-left-width: 8px;
+            }
+
+            .dashboard-title {
+                font-size: 28px;
+                line-height: 1.18;
+            }
+
+            .dashboard-subtitle {
+                font-size: 13px;
+            }
+
+            .dashboard-actions {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            #dashboard-refresh-btn,
+            #signout-btn {
+                width: 100%;
+            }
+
+            #last-update {
+                text-align: left;
+            }
+
+            .date-panel {
+                min-height: 0;
+            }
+
+            .summary-card {
+                min-height: 84px;
+                padding: 12px;
+            }
+
+            .summary-value,
+            .summary-primary .summary-value {
+                font-size: 28px;
+            }
+
+            #trend-section,
+            #yearly-chart-section,
+            #unit-chart-section,
+            #supply-warnings,
+            #incidents-section {
+                padding: 10px !important;
+            }
+
+            #trend-section h3,
+            #yearly-chart-section h3,
+            #unit-chart-section h3,
+            #supply-warnings h3,
+            #incidents-section h3 {
+                font-size: 15px !important;
+            }
+
+            .chart-container,
+            #trend-section .chart-container {
+                height: 240px;
+            }
+
+            #printer-grid {
+                height: 300px;
+                max-height: 300px;
+            }
+
+            #printer-grid table {
+                min-width: 760px;
+            }
+
+            #unit-filter-section {
+                padding: 8px !important;
+            }
+
+            .filter-title {
+                font-size: 15px;
+                gap: 6px;
+            }
+
+            #unit-filter-buttons {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 5px;
+            }
+
+            .unit-filter-button {
+                min-height: 44px;
+                padding: 7px;
+                font-size: 12px;
+            }
+
+            #history-modal {
+                padding: 10px !important;
+            }
+
+            #history-modal .glass-panel {
+                max-height: 88vh;
+                border-radius: 16px !important;
+            }
+
+            #history-modal .p-8 {
+                padding: 16px !important;
+            }
+
+            #modal-title {
+                font-size: 22px !important;
+            }
         }
     </style>
 </head>
 
-<body class="p-8">
+<body>
     <!-- 登入畫面 -->
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center" style="background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);">
         <div class="text-center">
-            <h1 class="text-5xl font-extrabold tracking-tighter mb-2 text-white">OPERATIONS<span class="text-indigo-500">CENTER</span></h1>
+            <h1 class="text-5xl font-extrabold mb-2 text-white">OPERATIONS<span class="text-indigo-500">CENTER</span></h1>
             <p class="text-slate-400 font-medium mb-8">全院印表機監控系統</p>
             <button id="google-login-btn"
                 class="flex items-center gap-3 mx-auto bg-white text-slate-900 hover:bg-slate-100 font-bold py-3 px-8 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
@@ -122,35 +891,31 @@
     </div>
 
     <!-- 儀表板內容（初始隱藏） -->
-    <div id="dashboard-content" class="max-w-7xl mx-auto hidden">
-        <header class="mb-8 flex justify-between items-end">
+    <div id="dashboard-content" class="dashboard-shell hidden">
+        <header class="dashboard-hero">
             <div>
-                <h1 class="text-5xl font-extrabold tracking-tighter mb-2">OPERATIONS<span
-                        class="text-indigo-500">CENTER</span></h1>
-                <p class="text-slate-400 font-medium">全院印表機監控系統 · 歷史數據整合版</p>
+                <h1 class="dashboard-title">各單位印表機列印量</h1>
+                <p class="dashboard-subtitle">全院印表機監控系統</p>
+                <div class="dashboard-actions">
+                    <button id="dashboard-refresh-btn" type="button" onclick="handleDashboardRefresh()">重整</button>
+                    <div id="last-update"></div>
+                </div>
             </div>
-            <div class="flex items-center gap-4">
-                <button id="dashboard-refresh-btn"
-                    class="px-4 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 text-sm font-bold transition-colors border border-indigo-400/30"
-                    onclick="handleDashboardRefresh()">
-                    重整
-                </button>
-                <div id="last-update" class="text-right text-slate-500 font-mono text-sm uppercase"></div>
+            <div class="hero-side">
+                <div class="date-panel" aria-label="資料日期區間">
+                    <p class="date-panel-title">Date</p>
+                    <div class="date-fields">
+                        <span id="date-start" class="date-field">--</span>
+                        <span id="date-end" class="date-field">--</span>
+                    </div>
+                    <div class="date-rule" aria-hidden="true"></div>
+                </div>
+                <div id="summary-bar" class="summary-strip" aria-label="列印量概況"></div>
             </div>
         </header>
 
-        <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <!-- 單位選單 -->
-            <aside id="unit-filter-section" class="glass-panel rounded-2xl p-4 w-full lg:w-64 lg:sticky lg:top-6 hidden">
-                <p class="text-xs text-slate-400 uppercase tracking-wider mb-3 font-bold">單位選單</p>
-                <div id="unit-filter-buttons" class="flex lg:flex-col flex-wrap gap-2">
-                </div>
-            </aside>
-
-            <main class="flex-1 min-w-0 w-full">
-                <!-- 概況條 -->
-                <div id="summary-bar" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                </div>
+        <div class="dashboard-layout">
+            <main class="dashboard-main-grid">
 
                 <!-- 每日趨勢圖 -->
                 <div id="trend-section" class="glass-panel rounded-2xl p-6 mb-8">
@@ -213,7 +978,7 @@
                 <div id="printer-grid" class="glass-panel rounded-2xl overflow-hidden mb-8">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="bg-white/5 text-slate-400 text-xs uppercase tracking-wider">
+                            <tr class="bg-white/5 text-slate-400 text-xs">
                                 <th class="px-4 py-3 font-bold text-left">狀態</th>
                                 <th class="px-4 py-3 font-bold text-left">單位</th>
                                 <th class="px-4 py-3 font-bold text-left">地點</th>
@@ -245,6 +1010,16 @@
                     </div>
                 </div>
             </main>
+            <!-- 單位選單 -->
+            <aside id="unit-filter-section" class="glass-panel hidden">
+                <p class="filter-title">
+                    <svg class="filter-title-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"></path>
+                    </svg>
+                    全部顯示/取消篩選
+                </p>
+                <div id="unit-filter-buttons"></div>
+            </aside>
         </div>
     </div>
 
@@ -336,7 +1111,7 @@
 
                 renderUnitFilter(printers, getUnitsWithTodayPrintData(printers));
                 renderScopedDashboard();
-                document.getElementById('last-update').innerText = `Updated: ${new Date().toLocaleString()}`;
+                document.getElementById('last-update').innerText = `最後更新：${new Date().toLocaleString('zh-TW', { hour12: false })}`;
             } catch (e) {
                 console.error("載入失敗:", e);
             } finally {
@@ -349,7 +1124,7 @@
             const btn = document.getElementById('dashboard-refresh-btn');
             if (!btn) return;
             btn.disabled = isLoading;
-            btn.textContent = isLoading ? '讀取中...' : '重整';
+            btn.textContent = isLoading ? '更新中...' : '重整';
             btn.classList.toggle('opacity-60', isLoading);
             btn.classList.toggle('cursor-not-allowed', isLoading);
         }
@@ -378,6 +1153,7 @@
             const unitsWithTodayPrintData = getUnitsWithTodayPrintData(cachedPrinters);
 
             renderSummary(computeSummary(scopedPrinters));
+            updateDataRange(scopedPrinters);
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
             renderScopedUnitChart(scopedPrinters);
@@ -390,6 +1166,31 @@
         function getTodayDateString() {
             const todayLocal = new Date();
             return `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDashboardDate(dateString) {
+            if (!dateString) return '--';
+            const date = new Date(dateString);
+            if (Number.isNaN(date.getTime())) return '--';
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function updateDataRange(printers) {
+            const startEl = document.getElementById('date-start');
+            const endEl = document.getElementById('date-end');
+            if (!startEl || !endEl) return;
+
+            const dates = [];
+            printers.forEach(p => {
+                (p.trend || []).forEach(row => {
+                    const date = (row.recorded_at || '').substring(0, 10);
+                    if (date) dates.push(date);
+                });
+            });
+
+            dates.sort();
+            startEl.textContent = formatDashboardDate(dates[0]);
+            endEl.textContent = formatDashboardDate(dates[dates.length - 1]);
         }
 
         function getUnitsWithTodayPrintData(printers) {
@@ -483,18 +1284,22 @@
         // == 概況條渲染 ==
         function renderSummary(s) {
             const bar = document.getElementById('summary-bar');
+            const scopeLabel = currentFilterUnit === 'all' ? '全部單位' : currentFilterUnit;
             bar.innerHTML = `
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-indigo-400">${(s.today_total || 0).toLocaleString()}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">今日總印量</p>
+                <div class="summary-card summary-primary">
+                    <p class="summary-value">${(s.today_total || 0).toLocaleString()}</p>
+                    <p class="summary-label">今日總印量</p>
+                    <p class="summary-hint">${scopeLabel}</p>
                 </div>
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-white">${s.total_printers}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">印表機總數</p>
+                <div class="summary-card">
+                    <p class="summary-value">${s.total_printers}</p>
+                    <p class="summary-label">印表機總數</p>
+                    <p class="summary-hint">目前範圍</p>
                 </div>
-                <div class="summary-card rounded-xl p-4 text-center">
-                    <p class="text-3xl font-black text-amber-400">${s.supply_warning_count}</p>
-                    <p class="text-xs text-slate-400 uppercase tracking-wider mt-1">耗材警告</p>
+                <div class="summary-card">
+                    <p class="summary-value">${s.supply_warning_count}</p>
+                    <p class="summary-label">耗材警告</p>
+                    <p class="summary-hint">低於 15%</p>
                 </div>
             `;
         }
@@ -537,9 +1342,9 @@
                     datasets: [{
                         label: '每日總印量',
                         data: sortedDates.map(d => dateMap[d]),
-                        borderColor: '#818cf8',
-                        backgroundColor: 'rgba(129, 140, 248, 0.1)',
-                        borderWidth: 2,
+                        borderColor: '#3b9cff',
+                        backgroundColor: 'rgba(59, 156, 255, 0.14)',
+                        borderWidth: 3,
                         fill: true,
                         tension: 0.4,
                         pointRadius: sortedDates.length > 30 ? 0 : 3,
@@ -552,19 +1357,23 @@
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
                             titleFont: { family: 'Plus Jakarta Sans' },
                             bodyFont: { family: 'Plus Jakarta Sans' },
                         }
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#64748b', maxTicksLimit: 10, font: { family: 'Plus Jakarta Sans' } }
+                            grid: { color: '#eef1f5' },
+                            ticks: { color: '#526071', maxTicksLimit: 10, font: { family: 'Plus Jakarta Sans', weight: '700' } }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#64748b', font: { family: 'Plus Jakarta Sans' } },
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                callback: value => Number(value).toLocaleString()
+                            },
                             beginAtZero: true
                         }
                     }
@@ -634,8 +1443,8 @@
                     datasets: [{
                         label: currentFilterUnit === 'all' ? '年度總印量' : `${currentFilterUnit} 年度總印量`,
                         data: years.map(year => yearMap[year]),
-                        backgroundColor: 'rgba(129, 140, 248, 0.7)',
-                        borderColor: '#818cf8',
+                        backgroundColor: 'rgba(59, 156, 255, 0.72)',
+                        borderColor: '#3b9cff',
                         borderWidth: 1,
                         borderRadius: 4,
                     }]
@@ -645,10 +1454,10 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 12, weight: '700' } }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
                             titleFont: { family: 'Plus Jakarta Sans' },
                             bodyFont: { family: 'Plus Jakarta Sans' },
                         }
@@ -656,11 +1465,15 @@
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } },
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                callback: value => Number(value).toLocaleString()
+                            },
                             beginAtZero: true
                         }
                     }
@@ -751,24 +1564,24 @@
                         {
                             label: '今日',
                             data: dailyData,
-                            backgroundColor: 'rgba(99, 102, 241, 0.7)',
-                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(59, 156, 255, 0.72)',
+                            borderColor: '#3b9cff',
                             borderWidth: 1,
                             borderRadius: 4,
                         },
                         {
                             label: '本月',
                             data: monthlyData,
-                            backgroundColor: 'rgba(34, 211, 238, 0.7)',
-                            borderColor: '#22d3ee',
+                            backgroundColor: 'rgba(244, 63, 94, 0.68)',
+                            borderColor: '#f43f5e',
                             borderWidth: 1,
                             borderRadius: 4,
                         },
                         {
                             label: '今年',
                             data: yearlyData,
-                            backgroundColor: 'rgba(251, 191, 36, 0.7)',
-                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                            borderColor: '#f59e0b',
                             borderWidth: 1,
                             borderRadius: 4,
                         }
@@ -779,10 +1592,10 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } }
+                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 12, weight: '700' } }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
                             titleFont: { family: 'Plus Jakarta Sans' },
                             bodyFont: { family: 'Plus Jakarta Sans' },
                         }
@@ -790,11 +1603,15 @@
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' }, beginAtZero: true },
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                callback: value => Number(value).toLocaleString()
+                            },
                             beginAtZero: true
                         }
                     }
@@ -806,9 +1623,9 @@
             const currentYear = new Date().getFullYear();
             const monthLabels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
             const palette = [
-                '#6366f1', '#22d3ee', '#fbbf24', '#34d399',
-                '#f472b6', '#a78bfa', '#fb7185', '#60a5fa',
-                '#c084fc', '#2dd4bf', '#f97316', '#84cc16'
+                '#3b9cff', '#f43f5e', '#f59e0b', '#10b981',
+                '#8b5cf6', '#14b8a6', '#ef4444', '#64748b',
+                '#06b6d4', '#84cc16', '#f97316', '#0f766e'
             ];
 
             const datasets = printers.map((p, idx) => {
@@ -850,10 +1667,10 @@
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
                             titleFont: { family: 'Plus Jakarta Sans' },
                             bodyFont: { family: 'Plus Jakarta Sans' },
                         }
@@ -861,11 +1678,15 @@
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }
+                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' }, beginAtZero: true },
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                callback: value => Number(value).toLocaleString()
+                            },
                             beginAtZero: true
                         }
                     }
@@ -882,21 +1703,20 @@
             section.classList.remove('hidden');
 
             buttons.innerHTML = '';
-            [{ value: 'all', label: '全部' }, ...units.map(u => ({ value: u, label: u }))].forEach(item => {
+            [{ value: 'all', label: '全部顯示' }, ...units.map(u => ({ value: u, label: u }))].forEach(item => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.dataset.unit = item.value;
-                button.textContent = item.label;
                 const hasToday = item.value === 'all' ? false : (unitsWithTodayPrintData.get(item.value) || false);
-                const colorClass = hasToday ? 'text-green-400' : 'text-white';
-                const bgClass = currentFilterUnit === item.value
-                    ? 'bg-indigo-500 shadow-lg shadow-indigo-950/30'
-                    : `bg-white/5 hover:bg-white/10 hover:text-white`;
-                button.className = [
-                    'w-full lg:text-left px-3 py-2 rounded-lg text-xs font-bold transition-colors',
-                    colorClass,
-                    bgClass
-                ].join(' ');
+                button.className = 'unit-filter-button';
+                button.classList.toggle('is-all', item.value === 'all');
+                button.classList.toggle('is-active', currentFilterUnit === item.value);
+                button.classList.toggle('has-data', hasToday);
+                button.setAttribute('aria-pressed', currentFilterUnit === item.value ? 'true' : 'false');
+                button.title = hasToday ? '今日已有列印資料' : '';
+                const label = document.createElement('span');
+                label.textContent = item.label;
+                button.appendChild(label);
                 button.addEventListener('click', () => filterByUnit(item.value));
                 buttons.appendChild(button);
             });
@@ -983,7 +1803,7 @@
             const tbody = document.getElementById('printer-table-body');
             if (!grid || !tbody) return;
 
-            if (currentFilterUnit === 'all') {
+            if (!printers || printers.length === 0) {
                 grid.classList.add('hidden');
                 tbody.innerHTML = '';
                 return;
@@ -993,17 +1813,24 @@
             tbody.innerHTML = printers.map((p, idx) => {
                 const statusClass = p.printer_status === 'warning' ? 'status-warning' :
                     p.printer_status === 'error' ? 'status-error' : 'status-normal';
+                const statusLabel = p.printer_status === 'warning' ? '注意' :
+                    p.printer_status === 'error' ? '異常' : '正常';
 
                 const toner = getSupplyPercent(p, 'toner');
                 const ink = getSupplyPercent(p, 'ink');
                 const paper = getSupplyPercent(p, 'paper');
                 return `
                     <tr class="border-t border-white/5 hover:bg-white/5 transition-colors">
-                        <td class="px-4 py-3"><div class="status-dot ${statusClass}" title="${p.printer_status}"></div></td>
-                        <td class="px-4 py-3 text-slate-300 text-xs">${p.unit || '-'}</td>
                         <td class="px-4 py-3">
-                            <div class="font-bold text-white">${p.unit || '-'}</div>
-                            <div class="text-[11px] text-slate-500">${p.location || '-'}</div>
+                            <div class="status-cell">
+                                <div class="status-dot ${statusClass}" title="${statusLabel}"></div>
+                                <span class="status-text">${statusLabel}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-300 text-xs font-bold">${p.unit || '-'}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-white">${p.location || '-'}</div>
+                            <div class="text-[11px] text-slate-500">${p.model || '-'}</div>
                             <div class="text-[11px] text-slate-500 md:hidden">${p.ip_address}</div>
                         </td>
                         <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model}</td>
@@ -1013,13 +1840,13 @@
                             <div class="text-lg font-black text-white">${(p.daily_total || 0).toLocaleString()}</div>
                             <div class="text-[10px] text-slate-500">列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}</div>
                         </td>
-                        <td class="px-4 py-3 text-right"><span class="font-mono text-xs" style="color:${getSupplyColor(toner)}">${toner}%</span></td>
-                        <td class="px-4 py-3 text-right"><span class="font-mono text-xs" style="color:${getSupplyColor(ink)}">${ink}%</span></td>
-                        <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="font-mono text-xs" style="color:${getSupplyColor(paper)}">${paper}%</span></td>
+                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:${getSupplyColor(toner)}">${toner}%</span></td>
+                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:${getSupplyColor(ink)}">${ink}%</span></td>
+                        <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="supply-chip font-mono" style="color:${getSupplyColor(paper)}">${paper}%</span></td>
                         <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300">${(p.total_all_time || 0).toLocaleString()}</span></td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <button onclick="showHistory(${p.id})" class="text-indigo-400 hover:text-indigo-300 text-xs mr-2">歷史</button>
-                            <button onclick="showSupplyMonitor(${p.id})" class="text-emerald-400 hover:text-emerald-300 text-xs">耗材</button>
+                            <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300 mr-2">歷史</button>
+                            <button onclick="showSupplyMonitor(${p.id})" class="action-link text-emerald-400 hover:text-emerald-300">耗材</button>
                         </td>
                     </tr>
                 `;
@@ -1246,14 +2073,11 @@
             btn.textContent = `Sign out (${user.email})`;
             btn.onclick = handleSignOut;
 
-            // 插入到 header 的 last-update 之前
+            // 放在更新資訊旁，避免登入後打亂儀表板網格。
             const lastUpdateEl = document.getElementById('last-update');
-            if (lastUpdateEl?.parentElement) {
-                try {
-                    header.insertBefore(btn, lastUpdateEl.parentElement);
-                } catch {
-                    header.appendChild(btn);
-                }
+            const actions = document.querySelector('.dashboard-actions');
+            if (actions && lastUpdateEl) {
+                actions.insertBefore(btn, lastUpdateEl);
             } else {
                 header.appendChild(btn);
             }
