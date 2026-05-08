@@ -1198,11 +1198,10 @@
             const unitsWithTodayPrintData = new Map();
             const printerUnitMap = new Map(printers.map(p => [p.ip_address, p.unit]));
             for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                const hasTodayPrintData = metrics.some(m =>
-                    (m.recorded_at || '').substring(0, 10) === todayStr &&
-                    Math.max(0, Number(m.daily_total) || 0) > 0
+                const hasToday = metrics.some(m =>
+                    (m.recorded_at || '').substring(0, 10) === todayStr
                 );
-                if (hasTodayPrintData) {
+                if (hasToday) {
                     const unit = printerUnitMap.get(ip);
                     if (unit) unitsWithTodayPrintData.set(unit, true);
                 }
@@ -1234,13 +1233,11 @@
                 new Date(a.recorded_at) - new Date(b.recorded_at)
             );
 
-            // daily_stats.daily_total is the daily increment (already computed by SQL LAG)
-            const dailyTotal = rawMetrics.length > 0 ?
-                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_total || 0) : 0;
-            const dailyPrint = rawMetrics.length > 0 ?
-                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_print || 0) : 0;
-            const dailyCopy = rawMetrics.length > 0 ?
-                Math.max(0, rawMetrics[rawMetrics.length - 1].daily_copy || 0) : 0;
+            const today = getTodayDateString();
+            const todayMetric = rawMetrics.find(m => (m.recorded_at || '').substring(0, 10) === today);
+            const dailyTotal = todayMetric ? Math.max(0, todayMetric.daily_total || 0) : 0;
+            const dailyPrint = todayMetric ? Math.max(0, todayMetric.daily_print || 0) : 0;
+            const dailyCopy = todayMetric ? Math.max(0, todayMetric.daily_copy || 0) : 0;
 
             const trend = rawMetrics.map(m => ({
                 recorded_at: m.recorded_at,
