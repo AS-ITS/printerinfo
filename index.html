@@ -209,12 +209,13 @@
 
         .summary-strip {
             display: grid;
-            grid-template-columns: 1.25fr 1fr 1fr;
+            grid-template-columns: minmax(150px, 1.18fr) minmax(92px, 0.62fr) minmax(168px, 1.25fr);
             gap: 10px;
             min-width: 0;
         }
 
         .summary-card {
+            min-width: 0;
             min-height: 104px;
             display: flex;
             flex-direction: column;
@@ -234,7 +235,8 @@
             line-height: 1;
             font-weight: 800;
             letter-spacing: 0;
-            overflow-wrap: anywhere;
+            overflow-wrap: normal;
+            white-space: nowrap;
         }
 
         .summary-primary .summary-value {
@@ -246,6 +248,7 @@
             color: #172033;
             font-size: 13px;
             font-weight: 800;
+            white-space: nowrap;
         }
 
         .summary-hint {
@@ -1066,6 +1069,18 @@
         let dashboardLoadedUserKey = null;
         let dashboardLoading = false;
 
+        async function fetchAllSupabaseRows(queryFactory, pageSize = 1000) {
+            const rows = [];
+            for (let from = 0; ; from += pageSize) {
+                const { data, error } = await queryFactory().range(from, from + pageSize - 1);
+                if (error) throw error;
+                const page = data || [];
+                rows.push(...page);
+                if (page.length < pageSize) break;
+            }
+            return rows;
+        }
+
         // == 儀表板渲染（需要登入後才呼叫） ==
         async function renderDashboard(options = {}) {
             const force = Boolean(options.force);
@@ -1094,10 +1109,10 @@
                     .from('supplies')
                     .select('*');
 
-                const { data: rawMetrics } = await supabaseClient
+                const rawMetrics = await fetchAllSupabaseRows(() => supabaseClient
                     .from('daily_stats')
                     .select('*')
-                    .order('recorded_at', { ascending: true });
+                    .order('recorded_at', { ascending: true }));
 
                 const { data: rawIncidents } = await supabaseClient
                     .from('incidents')
@@ -1228,10 +1243,15 @@
         }
 
         function computeSummary(printers) {
+            const today = getTodayDateString();
             let todayTotal = 0;
             let grandTotal = 0;
             printers.forEach(p => {
-                todayTotal += (p.daily_total || 0);
+                (p.trend || []).forEach(row => {
+                    if ((row.recorded_at || '').substring(0, 10) === today) {
+                        todayTotal += Math.max(0, row.daily_total || 0);
+                    }
+                });
                 grandTotal += (p.total_all_time || 0);
             });
             return {
