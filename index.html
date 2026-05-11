@@ -1243,10 +1243,15 @@
         }
 
         function computeSummary(printers) {
+            const today = getTodayDateString();
             let todayTotal = 0;
             let grandTotal = 0;
             printers.forEach(p => {
-                todayTotal += (p.daily_total || 0);
+                (p.trend || []).forEach(row => {
+                    if ((row.recorded_at || '').substring(0, 10) === today) {
+                        todayTotal += Math.max(0, row.daily_total || 0);
+                    }
+                });
                 grandTotal += (p.total_all_time || 0);
             });
             return {
@@ -1266,15 +1271,12 @@
                 new Date(a.recorded_at) - new Date(b.recorded_at)
             );
 
-            const latestDate = rawMetrics.length > 0
-                ? (rawMetrics[rawMetrics.length - 1].recorded_at || '').substring(0, 10)
-                : null;
             const today = getTodayDateString();
-            const isToday = latestDate === today;
+            const todayMetrics = rawMetrics.filter(m => (m.recorded_at || '').substring(0, 10) === today);
 
-            const dailyTotal = isToday ? Math.max(0, rawMetrics[rawMetrics.length - 1].daily_total || 0) : 0;
-            const dailyPrint = isToday ? Math.max(0, rawMetrics[rawMetrics.length - 1].daily_print || 0) : 0;
-            const dailyCopy = isToday ? Math.max(0, rawMetrics[rawMetrics.length - 1].daily_copy || 0) : 0;
+            const dailyTotal = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_total || 0), 0);
+            const dailyPrint = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_print || 0), 0);
+            const dailyCopy = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_copy || 0), 0);
 
             const trend = rawMetrics.map(m => ({
                 recorded_at: m.recorded_at,
