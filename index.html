@@ -1069,6 +1069,18 @@
         let dashboardLoadedUserKey = null;
         let dashboardLoading = false;
 
+        async function fetchAllSupabaseRows(queryFactory, pageSize = 1000) {
+            const rows = [];
+            for (let from = 0; ; from += pageSize) {
+                const { data, error } = await queryFactory().range(from, from + pageSize - 1);
+                if (error) throw error;
+                const page = data || [];
+                rows.push(...page);
+                if (page.length < pageSize) break;
+            }
+            return rows;
+        }
+
         // == 儀表板渲染（需要登入後才呼叫） ==
         async function renderDashboard(options = {}) {
             const force = Boolean(options.force);
@@ -1097,10 +1109,10 @@
                     .from('supplies')
                     .select('*');
 
-                const { data: rawMetrics } = await supabaseClient
+                const rawMetrics = await fetchAllSupabaseRows(() => supabaseClient
                     .from('daily_stats')
                     .select('*')
-                    .order('recorded_at', { ascending: true });
+                    .order('recorded_at', { ascending: true }));
 
                 const { data: rawIncidents } = await supabaseClient
                     .from('incidents')
