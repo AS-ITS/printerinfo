@@ -1252,19 +1252,20 @@
             );
 
             const today = getTodayDateString();
-            const todayMetric = rawMetrics.find(m => (m.recorded_at || '').substring(0, 10) === today);
-            const yesterdayMetric = todayMetric
-                ? rawMetrics.find(m => {
-                      const d = new Date((m.recorded_at || '').substring(0, 10));
-                      d.setDate(d.getDate() - 1);
-                      return d.toISOString().substring(0, 10) === today;
-                  })
-                : null;
+            const yesterdayStr = (() => {
+                const d = new Date();
+                d.setDate(d.getDate() - 1);
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })();
+
+            // 取今日最後一筆和昨日最後一筆的累積量
+            const todayLast = rawMetrics.filter(m => (m.recorded_at || '').substring(0, 10) === today).pop();
+            const yesterdayLast = rawMetrics.filter(m => (m.recorded_at || '').substring(0, 10) === yesterdayStr).pop();
 
             // 今日印量 = 今日累積量 - 昨日累積量（若無昨日則以 0 計算）
-            const dailyTotal = todayMetric ? Math.max(0, (todayMetric.total_count || 0) - (yesterdayMetric ? yesterdayMetric.total_count || 0 : 0)) : 0;
-            const dailyPrint = todayMetric ? Math.max(0, (todayMetric.print_count || 0) - (yesterdayMetric ? yesterdayMetric.print_count || 0 : 0)) : 0;
-            const dailyCopy = todayMetric ? Math.max(0, (todayMetric.copy_count || 0) - (yesterdayMetric ? yesterdayMetric.copy_count || 0 : 0)) : 0;
+            const dailyTotal = todayLast ? Math.max(0, (todayLast.total_count || 0) - (yesterdayLast ? yesterdayLast.total_count || 0 : 0)) : 0;
+            const dailyPrint = todayLast ? Math.max(0, (todayLast.print_count || 0) - (yesterdayLast ? yesterdayLast.print_count || 0 : 0)) : 0;
+            const dailyCopy = todayLast ? Math.max(0, (todayLast.copy_count || 0) - (yesterdayLast ? yesterdayLast.copy_count || 0 : 0)) : 0;
 
             const trend = rawMetrics.map(m => ({
                 recorded_at: m.recorded_at,
