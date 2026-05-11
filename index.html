@@ -1157,7 +1157,10 @@
             // 計算哪些單位今天至少有一台印表機的印量大於 0
             const unitsWithTodayPrintData = getUnitsWithTodayPrintData(cachedPrinters);
 
-            renderSummary(computeSummary(scopedPrinters));
+            // 所有印表機總列印數量（不隨篩選變動）
+            const grandTotal = cachedPrinters.reduce((sum, p) => sum + (p.total_all_time || 0), 0);
+
+            renderSummary(computeSummary(scopedPrinters), grandTotal);
             updateDataRange(scopedPrinters);
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
@@ -1214,15 +1217,18 @@
 
         function computeSummary(printers) {
             let todayTotal = 0;
+            let grandTotal = 0;
             printers.forEach(p => {
                 todayTotal += (p.daily_total || 0);
+                grandTotal += (p.total_all_time || 0);
             });
             return {
                 today_total: todayTotal,
                 total_printers: printers.length,
                 supply_warning_count: printers.filter(p =>
                     (p.supplies || []).some(s => s.percent < 15)
-                ).length
+                ).length,
+                grand_total: grandTotal
             };
         }
 
@@ -1286,7 +1292,7 @@
         }
 
         // == 概況條渲染 ==
-        function renderSummary(s) {
+        function renderSummary(s, grandTotal) {
             const bar = document.getElementById('summary-bar');
             const scopeLabel = currentFilterUnit === 'all' ? '全部單位' : currentFilterUnit;
             bar.innerHTML = `
@@ -1299,6 +1305,11 @@
                     <p class="summary-value">${s.total_printers}</p>
                     <p class="summary-label">印表機總數</p>
                     <p class="summary-hint">目前範圍</p>
+                </div>
+                <div class="summary-card">
+                    <p class="summary-value">${(grandTotal || 0).toLocaleString()}</p>
+                    <p class="summary-label">總列印數量</p>
+                    <p class="summary-hint">期間總和</p>
                 </div>
                 <div class="summary-card">
                     <p class="summary-value">${s.supply_warning_count}</p>
