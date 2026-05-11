@@ -949,6 +949,18 @@
                     <div id="yearly-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
                         尚無年度統計資料
                     </div>
+                    <div id="yearly-data-table" class="hidden mt-4 overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-slate-400 uppercase tracking-wider border-b border-white/10">
+                                    <th class="text-left py-2 px-2 font-bold">年度</th>
+                                    <th class="text-right py-2 px-2 font-bold">總印量</th>
+                                </tr>
+                            </thead>
+                            <tbody id="yearly-data-tbody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- 單位列印狀況 -->
@@ -1486,6 +1498,19 @@
                     }
                 }
             });
+
+            // 渲染年度數據表格
+            const tableEl = document.getElementById('yearly-data-table');
+            const tbodyEl = document.getElementById('yearly-data-tbody');
+            if (tableEl && tbodyEl) {
+                tableEl.classList.remove('hidden');
+                tbodyEl.innerHTML = years.map(year => `
+                    <tr class="border-t border-white/5">
+                        <td class="py-2 px-2 font-bold text-white">${year}</td>
+                        <td class="py-2 px-2 text-right font-mono text-white">${(yearMap[year] || 0).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         // == 依單位列印狀況圖表 ==
