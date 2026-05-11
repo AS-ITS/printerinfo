@@ -495,6 +495,18 @@
             box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.86);
         }
 
+        .unit-filter-button.no-data::after {
+            content: "";
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #fb6a7d;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.86);
+        }
+
         .supply-warning-card {
             border-left: 4px solid;
             border-radius: 8px !important;
@@ -1113,14 +1125,6 @@
                     .from('daily_stats')
                     .select('*')
                     .order('recorded_at', { ascending: true }));
-
-                // Debug: show daily_stats structure
-                if (rawMetrics && rawMetrics.length > 0) {
-                    console.log('[daily_stats_sample]', rawMetrics[0]);
-                    console.log('[daily_stats_all_keys]', Object.keys(rawMetrics[0]));
-                    console.log('[daily_stats_count]', rawMetrics.length);
-                    console.log('[daily_stats_dates]', [...new Set(rawMetrics.map(m => (m.recorded_at || '').substring(0, 10)))].join(', '));
-                }
 
                 const { data: rawIncidents } = await supabaseClient
                     .from('incidents')
@@ -1814,8 +1818,9 @@
                 button.classList.toggle('is-all', item.value === 'all');
                 button.classList.toggle('is-active', currentFilterUnit === item.value);
                 button.classList.toggle('has-data', hasToday);
+                button.classList.toggle('no-data', !hasToday);
                 button.setAttribute('aria-pressed', currentFilterUnit === item.value ? 'true' : 'false');
-                button.title = hasToday ? '今日已有列印資料' : '';
+                button.title = hasToday ? '今日已有列印資料' : '今日無列印資料';
                 const label = document.createElement('span');
                 label.textContent = item.label;
                 button.appendChild(label);
