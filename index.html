@@ -1114,6 +1114,14 @@
                     .select('*')
                     .order('recorded_at', { ascending: true }));
 
+                // Debug: show daily_stats structure
+                if (rawMetrics && rawMetrics.length > 0) {
+                    console.log('[daily_stats_sample]', rawMetrics[0]);
+                    console.log('[daily_stats_all_keys]', Object.keys(rawMetrics[0]));
+                    console.log('[daily_stats_count]', rawMetrics.length);
+                    console.log('[daily_stats_dates]', [...new Set(rawMetrics.map(m => (m.recorded_at || '').substring(0, 10)))].join(', '));
+                }
+
                 const { data: rawIncidents } = await supabaseClient
                     .from('incidents')
                     .select('*')
@@ -1286,6 +1294,11 @@
             const dailyTotal = todayLast ? Math.max(0, (todayLast.total_count || 0) - (yesterdayLast ? yesterdayLast.total_count || 0 : 0)) : 0;
             const dailyPrint = todayLast ? Math.max(0, (todayLast.print_count || 0) - (yesterdayLast ? yesterdayLast.print_count || 0 : 0)) : 0;
             const dailyCopy = todayLast ? Math.max(0, (todayLast.copy_count || 0) - (yesterdayLast ? yesterdayLast.copy_count || 0 : 0)) : 0;
+
+            // Debug
+            if (p.ip_address) {
+                console.log(`[daily_debug] ${p.ip_address}: todayStr=${today} yesterdayStr=${yesterdayStr} rawMetrics=${rawMetrics.length} todayLast=${todayLast ? todayLast.recorded_at + ' (' + todayLast.total_count + ')' : 'null'} yesterdayLast=${yesterdayLast ? yesterdayLast.recorded_at + ' (' + yesterdayLast.total_count + ')' : 'null'} dailyTotal=${dailyTotal}`);
+            }
 
             const trend = rawMetrics.map(m => ({
                 recorded_at: m.recorded_at,
