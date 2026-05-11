@@ -13,17 +13,25 @@ import (
 
 // 每日統計行（來自 daily_stats 視圖）
 type DailyRow struct {
-	IPAddress    string `json:"ip_address"`
-	RecordedAt   string `json:"recorded_at"`
-	DailyTotal   int    `json:"daily_total"`
+	IPAddress  string `json:"ip_address"`
+	RecordedAt string `json:"recorded_at"`
+	DailyTotal int    `json:"daily_total"`
+	TotalCount int    `json:"total_count,omitempty"`
+	PrintCount int    `json:"print_count,omitempty"`
+	CopyCount  int    `json:"copy_count,omitempty"`
+	ScanTotal  int    `json:"scan_total,omitempty"`
+	FaxCount   int    `json:"fax_count,omitempty"`
+	DailyPrint int    `json:"daily_print,omitempty"`
+	DailyCopy  int    `json:"daily_copy,omitempty"`
+	DailyScan  int    `json:"daily_scan,omitempty"`
+	DailyFax   int    `json:"daily_fax,omitempty"`
 }
 
 // 耗材狀態
 type Supply struct {
-	Type   int `json:"type"`
+	Type    int `json:"type"`
 	Percent int `json:"percent"`
 }
-
 
 // 故障紀錄
 type Incident struct {
@@ -35,22 +43,22 @@ type Incident struct {
 
 // 儀表板印表機（單一物件，供前端直接使用）
 type DashboardPrinter struct {
-	ID         int     `json:"id"`
-	IPAddress  string  `json:"ip_address"`
-	Location   string  `json:"location"`
-	Model      string  `json:"model"`
-	Unit       string  `json:"unit"`
-	PrinterState    string `json:"printer_status"`
-	TonerPercent    int    `json:"toner_percent"`
-	InkPercent      int    `json:"ink_percent"`
-	PaperPercent    int    `json:"paper_percent"`
-	Supplies        []Supply `json:"supplies"`
-	WarrantyDays    int    `json:"warranty_days"`
-	RecentIncidents int    `json:"recent_incidents_30d"`
-	Trend      []DailyRow `json:"trend"`
-	HistoryLogs []DailyRow `json:"history_logs"`
-	Incidents  []Incident  `json:"incidents"`
-	TotalCount  int       `json:"total_all_time"`
+	ID              int        `json:"id"`
+	IPAddress       string     `json:"ip_address"`
+	Location        string     `json:"location"`
+	Model           string     `json:"model"`
+	Unit            string     `json:"unit"`
+	PrinterState    string     `json:"printer_status"`
+	TonerPercent    int        `json:"toner_percent"`
+	InkPercent      int        `json:"ink_percent"`
+	PaperPercent    int        `json:"paper_percent"`
+	Supplies        []Supply   `json:"supplies"`
+	WarrantyDays    int        `json:"warranty_days"`
+	RecentIncidents int        `json:"recent_incidents_30d"`
+	Trend           []DailyRow `json:"trend"`
+	HistoryLogs     []DailyRow `json:"history_logs"`
+	Incidents       []Incident `json:"incidents"`
+	TotalCount      int        `json:"total_all_time"`
 }
 
 // 整體儀表板回應
@@ -81,9 +89,13 @@ func main() {
 	trendRows, err := db.Query(`
 		SELECT
 			ip_address, recorded_at::text,
-			daily_total
+			COALESCE(total_count, 0),
+			COALESCE(print_count, 0),
+			COALESCE(copy_count, 0),
+			COALESCE(scan_total, 0),
+			COALESCE(fax_count, 0)
 		FROM daily_stats
-		ORDER BY recorded_at DESC
+		ORDER BY ip_address, recorded_at ASC
 	`)
 	if err != nil {
 		log.Fatal("趨勢查詢失敗:", err)
@@ -95,7 +107,11 @@ func main() {
 		var r DailyRow
 		err := trendRows.Scan(
 			&r.IPAddress, &r.RecordedAt,
-			&r.DailyTotal,
+			&r.TotalCount,
+			&r.PrintCount,
+			&r.CopyCount,
+			&r.ScanTotal,
+			&r.FaxCount,
 		)
 		if err != nil {
 			log.Fatal("趨勢讀取失敗:", err)
@@ -103,6 +119,9 @@ func main() {
 		trendMap[r.IPAddress] = append(trendMap[r.IPAddress], r)
 	}
 	trendRows.Close()
+	for ip, rows := range trendMap {
+		trendMap[ip] = buildCorrectedTrend(rows)
+	}
 
 	// 4. 查詢 dashboard_stats 視圖（當前狀態）
 	dashRows, err := db.Query(`
@@ -206,15 +225,17 @@ func main() {
 
 	// 統計概況
 	response.Summary.TotalPrinters = len(response.Printers)
+	today := dashboardToday()
 	for _, p := range response.Printers {
 		for _, s := range p.Supplies {
 			if s.Percent < 15 {
 				response.Summary.SupplyWarningCount++
 			}
 		}
-		// 從趨勢資料計算今日印量（最新一筆 daily_total）
-		if len(p.Trend) > 0 && p.Trend[0].DailyTotal > 0 {
-			response.Summary.TodayTotal += p.Trend[0].DailyTotal
+		for _, row := range p.Trend {
+			if dateOnly(row.RecordedAt) == today && row.DailyTotal > 0 {
+				response.Summary.TodayTotal += row.DailyTotal
+			}
 		}
 	}
 
@@ -250,4 +271,67 @@ func supplyTypeToInt(t string) int {
 	default:
 		return 3
 	}
+}
+
+func dashboardToday() string {
+	loc, err := time.LoadLocation("Asia/Taipei")
+	if err != nil {
+		return time.Now().Format("2006-01-02")
+	}
+	return time.Now().In(loc).Format("2006-01-02")
+}
+
+func dateOnly(value string) string {
+	if len(value) >= len("2006-01-02") {
+		return value[:len("2006-01-02")]
+	}
+	return value
+}
+
+func buildCorrectedTrend(rows []DailyRow) []DailyRow {
+	var previous *DailyRow
+	for i := range rows {
+		current := rows[i]
+		hasReading := hasCounterReading(current)
+
+		if hasReading && previous != nil {
+			rows[i].DailyPrint = counterDelta(current.PrintCount, previous.PrintCount)
+			rows[i].DailyCopy = counterDelta(current.CopyCount, previous.CopyCount)
+			rows[i].DailyScan = counterDelta(current.ScanTotal, previous.ScanTotal)
+			rows[i].DailyFax = counterDelta(current.FaxCount, previous.FaxCount)
+
+			totalDelta := counterDelta(current.TotalCount, previous.TotalCount)
+			componentDelta := rows[i].DailyPrint + rows[i].DailyCopy + rows[i].DailyScan + rows[i].DailyFax
+			if totalDelta > 0 {
+				rows[i].DailyTotal = totalDelta
+			} else {
+				rows[i].DailyTotal = componentDelta
+			}
+			if componentDelta == 0 && totalDelta > 0 {
+				rows[i].DailyPrint = totalDelta
+			}
+		}
+
+		if hasReading {
+			previous = &rows[i]
+		} else if previous == nil {
+			previous = &rows[i]
+		}
+	}
+	return rows
+}
+
+func hasCounterReading(row DailyRow) bool {
+	return row.TotalCount > 0 ||
+		row.PrintCount > 0 ||
+		row.CopyCount > 0 ||
+		row.ScanTotal > 0 ||
+		row.FaxCount > 0
+}
+
+func counterDelta(current, previous int) int {
+	if current <= previous {
+		return 0
+	}
+	return current - previous
 }

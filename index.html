@@ -1269,6 +1269,56 @@
             };
         }
 
+        function hasCounterReading(row) {
+            return ['total_count', 'print_count', 'copy_count', 'scan_total', 'fax_count']
+                .some(key => Number(row?.[key] || 0) > 0);
+        }
+
+        function counterDelta(current, previous, key) {
+            return Math.max(0, Number(current?.[key] || 0) - Number(previous?.[key] || 0));
+        }
+
+        function buildCorrectedTrend(rawMetrics) {
+            let previousComparable = null;
+            return rawMetrics.map(row => {
+                const hasReading = hasCounterReading(row);
+                let dailyPrint = 0;
+                let dailyCopy = 0;
+                let dailyScan = 0;
+                let dailyFax = 0;
+                let dailyTotal = 0;
+
+                if (hasReading && previousComparable) {
+                    dailyPrint = counterDelta(row, previousComparable, 'print_count');
+                    dailyCopy = counterDelta(row, previousComparable, 'copy_count');
+                    dailyScan = counterDelta(row, previousComparable, 'scan_total');
+                    dailyFax = counterDelta(row, previousComparable, 'fax_count');
+
+                    const totalDelta = counterDelta(row, previousComparable, 'total_count');
+                    const componentDelta = dailyPrint + dailyCopy + dailyScan + dailyFax;
+                    dailyTotal = totalDelta > 0 ? totalDelta : componentDelta;
+                    if (componentDelta === 0 && totalDelta > 0) dailyPrint = totalDelta;
+                }
+
+                const corrected = {
+                    ...row,
+                    daily_print: dailyPrint,
+                    daily_copy: dailyCopy,
+                    daily_scan: dailyScan,
+                    daily_fax: dailyFax,
+                    daily_total: dailyTotal
+                };
+
+                if (hasReading) {
+                    previousComparable = row;
+                } else if (!previousComparable) {
+                    previousComparable = row;
+                }
+
+                return corrected;
+            });
+        }
+
         function buildPrinterData(p) {
             const supplies = (cachedSupplies[p.id] || []).map(s => ({
                 type: { toner: 0, ink: 1, paper: 2 }[s.supply_type] || 0,
@@ -1279,32 +1329,13 @@
                 new Date(a.recorded_at) - new Date(b.recorded_at)
             );
 
+            const trend = buildCorrectedTrend(rawMetrics);
             const today = getTodayDateString();
-            const yesterdayStr = (() => {
-                const d = new Date();
-                d.setDate(d.getDate() - 1);
-                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            })();
+            const todayMetrics = trend.filter(m => (m.recorded_at || '').substring(0, 10) === today);
 
-            // 取今日最後一筆和昨日最後一筆的累積量
-            const todayLast = rawMetrics.filter(m => (m.recorded_at || '').substring(0, 10) === today).pop();
-            const yesterdayLast = rawMetrics.filter(m => (m.recorded_at || '').substring(0, 10) === yesterdayStr).pop();
-
-            // 今日印量 = 今日累積量 - 昨日累積量（若無昨日則以 0 計算）
-            const dailyTotal = todayLast ? Math.max(0, (todayLast.total_count || 0) - (yesterdayLast ? yesterdayLast.total_count || 0 : 0)) : 0;
-            const dailyPrint = todayLast ? Math.max(0, (todayLast.print_count || 0) - (yesterdayLast ? yesterdayLast.print_count || 0 : 0)) : 0;
-            const dailyCopy = todayLast ? Math.max(0, (todayLast.copy_count || 0) - (yesterdayLast ? yesterdayLast.copy_count || 0 : 0)) : 0;
-
-            // Debug
-            if (p.ip_address) {
-                console.log(`[daily_debug] ${p.ip_address}: todayStr=${today} yesterdayStr=${yesterdayStr} rawMetrics=${rawMetrics.length} todayLast=${todayLast ? todayLast.recorded_at + ' (' + todayLast.total_count + ')' : 'null'} yesterdayLast=${yesterdayLast ? yesterdayLast.recorded_at + ' (' + yesterdayLast.total_count + ')' : 'null'} dailyTotal=${dailyTotal}`);
-            }
-
-            const trend = rawMetrics.map(m => ({
-                recorded_at: m.recorded_at,
-                // daily_total 是 daily_stats view 已用 LAG 算好的增量值，不可 fallback 到累積值 total_count
-                daily_total: Math.max(0, m.daily_total || 0)
-            }));
+            const dailyTotal = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_total || 0), 0);
+            const dailyPrint = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_print || 0), 0);
+            const dailyCopy = todayMetrics.reduce((sum, m) => sum + Math.max(0, m.daily_copy || 0), 0);
 
             const incidents = cachedIncidents
                 .filter(i => i.printer_id === p.id)

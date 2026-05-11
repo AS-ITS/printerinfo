@@ -78,10 +78,11 @@ WHERE NOT EXISTS (
 );
 
 -- 第八步：建立/更新 daily_stats 視圖
--- 修正：LAG 差值改用 GREATEST(..., 0) 防止計數器重置時出現負數
+-- 修正：每日差值使用上一筆有效讀數；中途全 0 讀數不作為隔日基準，避免把累積總數誤算成今日印量
 -- 修正：先 DROP 再 CREATE，避免欄位順序或名稱異動時報錯
 DROP VIEW IF EXISTS daily_stats CASCADE;
 CREATE VIEW daily_stats AS
+WITH metric_deltas AS (
 SELECT
   p.ip_address,
   p.location,
@@ -92,17 +93,80 @@ SELECT
   m.copy_count,
   m.scan_total,
   m.fax_count,
-  GREATEST(m.print_count - LAG(m.print_count) OVER w, 0) AS daily_print,
-  GREATEST(m.copy_count  - LAG(m.copy_count)  OVER w, 0) AS daily_copy,
-  GREATEST(m.scan_total  - LAG(m.scan_total)  OVER w, 0) AS daily_scan,
-  GREATEST(m.fax_count   - LAG(m.fax_count)   OVER w, 0) AS daily_fax,
-  GREATEST(m.print_count - LAG(m.print_count) OVER w, 0)
-    + GREATEST(m.copy_count  - LAG(m.copy_count)  OVER w, 0)
-    + GREATEST(m.scan_total  - LAG(m.scan_total)  OVER w, 0)
-    + GREATEST(m.fax_count   - LAG(m.fax_count)   OVER w, 0) AS daily_total
+  CASE WHEN current_has_reading.has_value
+    THEN GREATEST(COALESCE(m.print_count, 0) - COALESCE(prev.print_count, COALESCE(m.print_count, 0)), 0)
+    ELSE 0
+  END AS daily_print,
+  CASE WHEN current_has_reading.has_value
+    THEN GREATEST(COALESCE(m.copy_count, 0) - COALESCE(prev.copy_count, COALESCE(m.copy_count, 0)), 0)
+    ELSE 0
+  END AS daily_copy,
+  CASE WHEN current_has_reading.has_value
+    THEN GREATEST(COALESCE(m.scan_total, 0) - COALESCE(prev.scan_total, COALESCE(m.scan_total, 0)), 0)
+    ELSE 0
+  END AS daily_scan,
+  CASE WHEN current_has_reading.has_value
+    THEN GREATEST(COALESCE(m.fax_count, 0) - COALESCE(prev.fax_count, COALESCE(m.fax_count, 0)), 0)
+    ELSE 0
+  END AS daily_fax,
+  CASE WHEN current_has_reading.has_value
+    THEN GREATEST(COALESCE(m.total_count, 0) - COALESCE(prev.total_count, COALESCE(m.total_count, 0)), 0)
+    ELSE 0
+  END AS total_delta
 FROM printer_metrics m
 JOIN printers p ON m.printer_id = p.id
-WINDOW w AS (PARTITION BY m.printer_id ORDER BY m.recorded_at);
+CROSS JOIN LATERAL (
+  SELECT
+    COALESCE(m.total_count, 0) > 0
+    OR COALESCE(m.print_count, 0) > 0
+    OR COALESCE(m.copy_count, 0) > 0
+    OR COALESCE(m.scan_total, 0) > 0
+    OR COALESCE(m.fax_count, 0) > 0 AS has_value
+) current_has_reading
+LEFT JOIN LATERAL (
+  SELECT pm.*
+  FROM printer_metrics pm
+  WHERE pm.printer_id = m.printer_id
+    AND pm.recorded_at < m.recorded_at
+    AND (
+      COALESCE(pm.total_count, 0) > 0
+      OR COALESCE(pm.print_count, 0) > 0
+      OR COALESCE(pm.copy_count, 0) > 0
+      OR COALESCE(pm.scan_total, 0) > 0
+      OR COALESCE(pm.fax_count, 0) > 0
+      OR NOT EXISTS (
+        SELECT 1
+        FROM printer_metrics earlier
+        WHERE earlier.printer_id = pm.printer_id
+          AND earlier.recorded_at < pm.recorded_at
+      )
+    )
+  ORDER BY pm.recorded_at DESC
+  LIMIT 1
+) prev ON TRUE
+)
+SELECT
+  ip_address,
+  location,
+  model,
+  recorded_at,
+  total_count,
+  print_count,
+  copy_count,
+  scan_total,
+  fax_count,
+  CASE WHEN daily_print = 0 AND daily_copy = 0 AND daily_scan = 0 AND daily_fax = 0 AND total_delta > 0
+    THEN total_delta
+    ELSE daily_print
+  END AS daily_print,
+  daily_copy,
+  daily_scan,
+  daily_fax,
+  CASE WHEN total_delta > 0
+    THEN total_delta
+    ELSE daily_print + daily_copy + daily_scan + daily_fax
+  END AS daily_total
+FROM metric_deltas;
 
 -- 第九步：建立 dashboard_stats 儀表板整合視圖
 -- 修正：warranty_end 為 NULL 時 warranty_days 回傳 NULL，避免誤顯示為 365
