@@ -300,16 +300,8 @@ func buildCorrectedTrend(rows []DailyRow) []DailyRow {
 			rows[i].DailyScan = counterDelta(current.ScanTotal, previous.ScanTotal)
 			rows[i].DailyFax = counterDelta(current.FaxCount, previous.FaxCount)
 
-			totalDelta := counterDelta(current.TotalCount, previous.TotalCount)
-			componentDelta := rows[i].DailyPrint + rows[i].DailyCopy + rows[i].DailyScan + rows[i].DailyFax
-			if totalDelta > 0 {
-				rows[i].DailyTotal = totalDelta
-			} else {
-				rows[i].DailyTotal = componentDelta
-			}
-			if componentDelta == 0 && totalDelta > 0 {
-				rows[i].DailyPrint = totalDelta
-			}
+			// 總數量 = 列印 + 影印 + 傳真（不含掃描）
+			rows[i].DailyTotal = rows[i].DailyPrint + rows[i].DailyCopy + rows[i].DailyFax
 		}
 
 		if hasReading {
