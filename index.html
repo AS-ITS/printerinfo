@@ -1256,17 +1256,23 @@
 
         function computeSummary(printers) {
             const today = getTodayDateString();
-            let todayTotal = 0;
+            let todayPrint = 0, todayCopy = 0, todayFax = 0, todayTotal = 0;
             let grandTotal = 0;
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
                     if ((row.recorded_at || '').substring(0, 10) === today) {
+                        todayPrint += Math.max(0, row.daily_print || 0);
+                        todayCopy += Math.max(0, row.daily_copy || 0);
+                        todayFax += Math.max(0, row.daily_fax || 0);
                         todayTotal += Math.max(0, row.daily_total || 0);
                     }
                 });
                 grandTotal += (p.total_all_time || 0);
             });
             return {
+                today_print: todayPrint,
+                today_copy: todayCopy,
+                today_fax: todayFax,
                 today_total: todayTotal,
                 total_printers: printers.length,
                 grand_total: grandTotal
@@ -1298,10 +1304,8 @@
                     dailyScan = counterDelta(row, previousComparable, 'scan_total');
                     dailyFax = counterDelta(row, previousComparable, 'fax_count');
 
-                    const totalDelta = counterDelta(row, previousComparable, 'total_count');
-                    const componentDelta = dailyPrint + dailyCopy + dailyScan + dailyFax;
-                    dailyTotal = totalDelta > 0 ? totalDelta : componentDelta;
-                    if (componentDelta === 0 && totalDelta > 0) dailyPrint = totalDelta;
+                    // 總數量 = 列印 + 影印 + 傳真（不含掃描）
+                    dailyTotal = dailyPrint + dailyCopy + dailyFax;
                 }
 
                 const corrected = {
@@ -1379,20 +1383,35 @@
             const bar = document.getElementById('summary-bar');
             const scopeLabel = currentFilterUnit === 'all' ? '全部單位' : currentFilterUnit;
             bar.innerHTML = `
-                <div class="summary-card summary-primary">
-                    <p class="summary-value">${(s.today_total || 0).toLocaleString()}</p>
-                    <p class="summary-label">今日總印量</p>
-                    <p class="summary-hint">${scopeLabel}</p>
+                <div class="summary-card" style="flex: 1.25;">
+                    <p class="summary-value">${(s.today_print || 0).toLocaleString()}</p>
+                    <p class="summary-label">列印數量</p>
+                    <p class="summary-hint">今日 ${scopeLabel}</p>
                 </div>
-                <div class="summary-card">
+                <div class="summary-card" style="flex: 1;">
+                    <p class="summary-value">${(s.today_copy || 0).toLocaleString()}</p>
+                    <p class="summary-label">影印數量</p>
+                    <p class="summary-hint">今日 ${scopeLabel}</p>
+                </div>
+                <div class="summary-card" style="flex: 1;">
+                    <p class="summary-value">${(s.today_fax || 0).toLocaleString()}</p>
+                    <p class="summary-label">傳真數量</p>
+                    <p class="summary-hint">今日 ${scopeLabel}</p>
+                </div>
+                <div class="summary-card" style="flex: 1.25;">
+                    <p class="summary-value" style="color: #fb6a7d;">${(s.today_total || 0).toLocaleString()}</p>
+                    <p class="summary-label">總數量</p>
+                    <p class="summary-hint">列印+影印+傳真</p>
+                </div>
+                <div class="summary-card" style="flex: 0.62;">
                     <p class="summary-value">${s.total_printers}</p>
                     <p class="summary-label">印表機總數</p>
                     <p class="summary-hint">目前範圍</p>
                 </div>
-                <div class="summary-card">
+                <div class="summary-card" style="flex: 1.25;">
                     <p class="summary-value">${(grandTotal || 0).toLocaleString()}</p>
-                    <p class="summary-label">總列印數量</p>
-                    <p class="summary-hint">期間總和</p>
+                    <p class="summary-label">期間總印量</p>
+                    <p class="summary-hint">至今累計</p>
                 </div>
             `;
         }
