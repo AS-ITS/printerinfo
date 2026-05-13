@@ -272,6 +272,8 @@
             grid-template-areas:
                 "trend details"
                 "unit yearly"
+                "pcnt yearly"
+                "monthly monthly"
                 "warnings warnings"
                 "incidents incidents";
             gap: 10px;
@@ -281,6 +283,8 @@
         #trend-section { grid-area: trend; }
         #yearly-chart-section { grid-area: yearly; }
         #unit-chart-section { grid-area: unit; }
+        #printer-count-section { grid-area: pcnt; }
+        #monthly-chart-section { grid-area: monthly; }
         #printer-grid { grid-area: details; }
         #supply-warnings { grid-area: warnings; }
         #incidents-section { grid-area: incidents; }
@@ -301,6 +305,8 @@
         #trend-section,
         #yearly-chart-section,
         #unit-chart-section,
+        #printer-count-section,
+        #monthly-chart-section,
         #supply-warnings,
         #incidents-section {
             padding: 12px !important;
@@ -309,6 +315,8 @@
         #trend-section h3,
         #yearly-chart-section h3,
         #unit-chart-section h3,
+        #printer-count-section h3,
+        #monthly-chart-section h3,
         #supply-warnings h3,
         #incidents-section h3 {
             margin: 0 0 10px !important;
@@ -322,6 +330,8 @@
         #trend-section h3 svg,
         #yearly-chart-section h3 svg,
         #unit-chart-section h3 svg,
+        #printer-count-section h3 svg,
+        #monthly-chart-section h3 svg,
         #supply-warnings h3 svg,
         #incidents-section h3 svg {
             color: var(--accent-strong) !important;
@@ -641,7 +651,9 @@
                 grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
                 grid-template-areas:
                     "trend yearly"
-                    "unit unit"
+                    "unit yearly"
+                    "pcnt yearly"
+                    "monthly monthly"
                     "details details"
                     "warnings warnings"
                     "incidents incidents";
@@ -682,6 +694,8 @@
                 grid-template-columns: 1fr;
                 grid-template-areas:
                     "trend"
+                    "pcnt"
+                    "monthly"
                     "details"
                     "unit"
                     "yearly"
@@ -736,6 +750,8 @@
                 grid-template-columns: 1fr;
                 grid-template-areas:
                     "trend"
+                    "pcnt"
+                    "monthly"
                     "details"
                     "unit"
                     "yearly"
@@ -830,6 +846,8 @@
             #trend-section h3,
             #yearly-chart-section h3,
             #unit-chart-section h3,
+            #printer-count-section h3,
+            #monthly-chart-section h3,
             #supply-warnings h3,
             #incidents-section h3 {
                 font-size: 15px !important;
@@ -991,6 +1009,38 @@
                     </div>
                     <div id="unit-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
                         本年度尚無列印紀錄
+                    </div>
+                </div>
+
+                <!-- 各單位印表機數量 -->
+                <div id="printer-count-section" class="glass-panel rounded-2xl p-6 mb-8">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        各單位印表機數量
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="printer-count-chart"></canvas>
+                    </div>
+                    <div id="printer-count-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
+                        暫無印表機資料
+                    </div>
+                </div>
+
+                <!-- 各年度每月印量比較（折線圖） -->
+                <div id="monthly-chart-section" class="glass-panel rounded-2xl p-6 mb-8">
+                    <h3 class="text-lg font-bold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M12 17h.01"></path>
+                        </svg>
+                        各年度每月印量比較
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="monthly-chart"></canvas>
+                    </div>
+                    <div id="monthly-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
+                        尚無月份比較資料
                     </div>
                 </div>
 
@@ -1196,14 +1246,15 @@
             // 計算哪些單位今天至少有一台印表機的印量大於 0
             const unitsWithTodayPrintData = getUnitsWithTodayPrintData(cachedPrinters);
 
-            // 所有印表機總列印數量（不隨篩選變動）
-            const grandTotal = cachedPrinters.reduce((sum, p) => sum + (p.total_all_time || 0), 0);
+            const summary = computeSummary(scopedPrinters);
 
-            renderSummary(computeSummary(scopedPrinters), grandTotal);
+            renderSummary(summary, summary.grand_total);
             updateDataRange(scopedPrinters);
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
             renderScopedUnitChart(scopedPrinters);
+            renderPrinterCountChart(cachedPrinters);
+            renderMonthlyComparisonChart(scopedPrinters);
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
             renderIncidents(scopedIncidents);
@@ -1819,6 +1870,219 @@
             });
         }
 
+        // == 各單位印表機數量圖表 ==
+        let printerCountChartInstance = null;
+
+        function destroyPrinterCountChart() {
+            if (printerCountChartInstance) {
+                printerCountChartInstance.destroy();
+                printerCountChartInstance = null;
+            }
+            if (typeof Chart !== 'undefined' && Chart.instances) {
+                Object.keys(Chart.instances).forEach(key => {
+                    const chart = Chart.instances[key];
+                    if (chart && chart.canvas && chart.canvas.id === 'printer-count-chart') chart.destroy();
+                });
+            }
+        }
+
+        function setPrinterCountEmpty(message, isEmpty) {
+            const empty = document.getElementById('printer-count-empty');
+            const canvas = document.getElementById('printer-count-chart');
+            if (!empty || !canvas) return;
+            empty.textContent = message;
+            empty.classList.toggle('hidden', !isEmpty);
+            canvas.classList.toggle('hidden', isEmpty);
+        }
+
+        function renderPrinterCountChart(printers) {
+            const section = document.getElementById('printer-count-section');
+            if (!section) return;
+            section.classList.remove('hidden');
+
+            // 依單位計數
+            const unitMap = {};
+            printers.forEach(p => {
+                if (!p.unit) return;
+                unitMap[p.unit] = (unitMap[p.unit] || 0) + 1;
+            });
+
+            const units = Object.keys(unitMap).sort();
+            const counts = units.map(u => unitMap[u]);
+
+            destroyPrinterCountChart();
+
+            if (units.length === 0) {
+                setPrinterCountEmpty('暫無印表機資料', true);
+                return;
+            }
+
+            setPrinterCountEmpty('', false);
+
+            // 取所有圖表的共用色系
+            const palette = [
+                '#3b9cff', '#f43f5e', '#f59e0b', '#10b981',
+                '#8b5cf6', '#14b8a6', '#ef4444', '#64748b',
+                '#06b6d4', '#84cc16', '#f97316', '#0f766e'
+            ];
+            const colors = units.map((_, i) => palette[i % palette.length]);
+
+            const ctx = document.getElementById('printer-count-chart').getContext('2d');
+            printerCountChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: units,
+                    datasets: [{
+                        label: '印表機數量',
+                        data: counts,
+                        backgroundColor: colors.map(c => c + 'b3'),
+                        borderColor: colors,
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
+                        },
+                        y: {
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                stepSize: 1
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // == 各年度每月印量比較（折線圖） ==
+        let monthlyChartInstance = null;
+
+        function destroyMonthlyChart() {
+            if (monthlyChartInstance) {
+                monthlyChartInstance.destroy();
+                monthlyChartInstance = null;
+            }
+            if (typeof Chart !== 'undefined' && Chart.instances) {
+                Object.keys(Chart.instances).forEach(key => {
+                    const chart = Chart.instances[key];
+                    if (chart && chart.canvas && chart.canvas.id === 'monthly-chart') chart.destroy();
+                });
+            }
+        }
+
+        function setMonthlyChartEmpty(message, isEmpty) {
+            const empty = document.getElementById('monthly-chart-empty');
+            const canvas = document.getElementById('monthly-chart');
+            if (!empty || !canvas) return;
+            empty.textContent = message;
+            empty.classList.toggle('hidden', !isEmpty);
+            canvas.classList.toggle('hidden', isEmpty);
+        }
+
+        function renderMonthlyComparisonChart(printers) {
+            const section = document.getElementById('monthly-chart-section');
+            if (!section) return;
+            section.classList.remove('hidden');
+
+            // 聚合：年 -> 月 -> 總印量
+            const yearMap = {};
+            printers.forEach(p => {
+                (p.trend || []).forEach(row => {
+                    const d = new Date((row.recorded_at || '').substring(0, 10));
+                    if (Number.isNaN(d.getTime())) return;
+                    const year = String(d.getFullYear());
+                    const month = d.getMonth() + 1;
+                    const total = Math.max(0, row.daily_total || 0);
+
+                    if (!yearMap[year]) yearMap[year] = {};
+                    if (!yearMap[year][month]) yearMap[year][month] = 0;
+                    yearMap[year][month] += total;
+                });
+            });
+
+            const years = Object.keys(yearMap).sort();
+            if (years.length === 0) {
+                setMonthlyChartEmpty('尚無月份比較資料', true);
+                return;
+            }
+
+            setMonthlyChartEmpty('', false);
+
+            const monthLabels = Array.from({ length: 12 }, (_, i) => `${i + 1}月`);
+            const palette = [
+                '#3b9cff', '#f43f5e', '#f59e0b', '#10b981',
+                '#8b5cf6', '#14b8a6', '#ef4444', '#64748b',
+                '#06b6d4', '#84cc16', '#f97316', '#0f766e'
+            ];
+
+            const datasets = years.map((year, idx) => ({
+                label: `${year} 年`,
+                data: Array.from({ length: 12 }, (_, i) => yearMap[year][i + 1] || 0),
+                borderColor: palette[idx % palette.length],
+                backgroundColor: palette[idx % palette.length] + '33',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false,
+            }));
+
+            destroyMonthlyChart();
+
+            const ctx = document.getElementById('monthly-chart').getContext('2d');
+            monthlyChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: monthLabels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
+                            titleFont: { family: 'Plus Jakarta Sans' },
+                            bodyFont: { family: 'Plus Jakarta Sans' },
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
+                        },
+                        y: {
+                            grid: { color: '#e5e9f0' },
+                            ticks: {
+                                color: '#526071',
+                                font: { family: 'Plus Jakarta Sans', weight: '700' },
+                                callback: value => Number(value).toLocaleString()
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
         function renderUnitFilter(printers, unitsWithTodayPrintData) {
             const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
             if (units.length === 0) return;
@@ -1971,6 +2235,7 @@
                         <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="supply-chip font-mono" style="color:${getSupplyColor(paper)}">${paper}%</span></td>
                         <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300">${(p.total_all_time || 0).toLocaleString()}</span></td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <a href="printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address)}" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
                             <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300 mr-2">歷史</button>
                             <button onclick="showSupplyMonitor(${p.id})" class="action-link text-emerald-400 hover:text-emerald-300">耗材</button>
                         </td>

@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -71,6 +74,23 @@ type DashboardResponse struct {
 	Printers []DashboardPrinter `json:"printers"`
 }
 
+// API 回應格式
+type APIResponse struct {
+	Success bool        `json:"success"`
+	Error   string      `json:"error,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+var (
+	db              *sql.DB
+	trendMap        = make(map[string][]DailyRow)
+	supplyMap       = make(map[int][]Supply)
+	incidentMap     = make(map[int][]Incident)
+	dashboardCache  []byte
+	cacheMutex      struct{}
+	dataLoaded      bool
+)
+
 func main() {
 	// 1. 從環境變數獲取連線字串
 	connStr := os.Getenv("SUPABASE_DB_CONNECTION")
@@ -79,11 +99,62 @@ func main() {
 	}
 
 	// 2. 連線至資料庫
-	db, err := sql.Open("postgres", connStr)
+	var err error
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	// 3. 初始載入資料
+	if err := loadAllData(); err != nil {
+		log.Printf("初始載入失敗: %v", err)
+	}
+
+	// 4. 定期更新資料
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := loadAllData(); err != nil {
+				log.Printf("定期更新失敗: %v", err)
+			}
+		}
+	}()
+
+	// 5. HTTP Server
+	mux := http.NewServeMux()
+
+	// API 端點
+	mux.HandleFunc("/api/printer", handlerPrinter)
+	mux.HandleFunc("/api/printer/", handlerPrinterByID)
+
+	// 靜態檔案
+	fs := http.FileServer(http.Dir("public"))
+	mux.Handle("/", fs)
+
+	addr := ":8080"
+	if port := os.Getenv("PORT"); port != "" {
+		addr = ":" + port
+	}
+
+	log.Printf("Server listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+// loadAllData 從資料庫載入所有資料並更新緩存
+func loadAllData() error {
+	connStr := os.Getenv("SUPABASE_DB_CONNECTION")
+	if connStr == "" {
+		return fmt.Errorf("未設定 SUPABASE_DB_CONNECTION")
+	}
+
+	// 重新連線
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		return err
+	}
 
 	// 3. 查詢 daily_stats 視圖（歷史趨勢，包含每日增量 daily_total）
 	trendRows, err := db.Query(`
@@ -98,11 +169,11 @@ func main() {
 		ORDER BY ip_address, recorded_at ASC
 	`)
 	if err != nil {
-		log.Fatal("趨勢查詢失敗:", err)
+		return fmt.Errorf("趨勢查詢失敗: %w", err)
 	}
 
 	// 按 IP 分組趨勢資料
-	trendMap := make(map[string][]DailyRow)
+	trendMap = make(map[string][]DailyRow)
 	for trendRows.Next() {
 		var r DailyRow
 		err := trendRows.Scan(
@@ -114,7 +185,7 @@ func main() {
 			&r.FaxCount,
 		)
 		if err != nil {
-			log.Fatal("趨勢讀取失敗:", err)
+			return fmt.Errorf("趨勢讀取失敗: %w", err)
 		}
 		trendMap[r.IPAddress] = append(trendMap[r.IPAddress], r)
 	}
@@ -131,13 +202,13 @@ func main() {
 		ORDER BY unit, ip_address
 	`)
 	if err != nil {
-		log.Fatal("儀表板查詢失敗:", err)
+		return fmt.Errorf("儀表板查詢失敗: %w", err)
 	}
 
 	// 查詢耗材詳細資料
 	supplyRows, err := db.Query(`SELECT printer_id, supply_type, remaining_percent FROM supplies`)
 	if err != nil {
-		log.Fatal("耗材查詢失敗:", err)
+		return fmt.Errorf("耗材查詢失敗: %w", err)
 	}
 
 	// 查詢近期故障紀錄
@@ -148,18 +219,18 @@ func main() {
 		ORDER BY incident_date DESC
 	`)
 	if err != nil {
-		log.Fatal("故障紀錄查詢失敗:", err)
+		return fmt.Errorf("故障紀錄查詢失敗: %w", err)
 	}
 
 	// 將 supplyRows 轉換為 map
-	supplyMap := make(map[int][]Supply)
+	supplyMap = make(map[int][]Supply)
 	for supplyRows.Next() {
 		var printerID int
 		var supplyType string
 		var remainingPercent int
 		err := supplyRows.Scan(&printerID, &supplyType, &remainingPercent)
 		if err != nil {
-			log.Fatal("耗材讀取失敗:", err)
+			return fmt.Errorf("耗材讀取失敗: %w", err)
 		}
 		supplyMap[printerID] = append(supplyMap[printerID], Supply{
 			Type:    supplyTypeToInt(supplyType),
@@ -169,13 +240,13 @@ func main() {
 	supplyRows.Close()
 
 	// 將 incidentRows 轉換為 map
-	incidentMap := make(map[int][]Incident)
+	incidentMap = make(map[int][]Incident)
 	for incidentRows.Next() {
 		var printerID int
 		var inc Incident
 		err := incidentRows.Scan(&printerID, &inc.ErrorCode, &inc.Description, &inc.IncidentDate, &inc.DowntimeMin)
 		if err != nil {
-			log.Fatal("故障紀錄讀取失敗:", err)
+			return fmt.Errorf("故障紀錄讀取失敗: %w", err)
 		}
 		incidentMap[printerID] = append(incidentMap[printerID], inc)
 	}
@@ -196,7 +267,7 @@ func main() {
 			&warrantyDays, &dp.RecentIncidents,
 		)
 		if err != nil {
-			log.Fatal("儀表板讀取失敗:", err)
+			return fmt.Errorf("儀表板讀取失敗: %w", err)
 		}
 		// 若資料庫中 warranty_days 為 NULL，則轉換為 0
 		if warrantyDays.Valid {
@@ -242,22 +313,145 @@ func main() {
 	// 將資料寫入 JSON
 	jsonData, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
-		log.Fatal("JSON 轉換失敗:", err)
+		return fmt.Errorf("JSON 轉換失敗: %w", err)
 	}
 
 	// 確保輸出目錄存在並寫入檔案
 	err = os.MkdirAll("public", 0755)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("目錄創建失敗: %w", err)
 	}
 
 	err = os.WriteFile("public/data.json", jsonData, 0644)
 	if err != nil {
-		log.Fatal("檔案寫入失敗:", err)
+		return fmt.Errorf("檔案寫入失敗: %w", err)
 	}
+
+	dashboardCache = jsonData
+	dataLoaded = true
 
 	fmt.Printf("成功！已從 Supabase 擷取 %d 台印表機資料並儲存至 public/data.json\n", len(response.Printers))
 	fmt.Println("產生時間:", time.Now().Format("2006-01-02 15:04:05"))
+	return nil
+}
+
+// handlerPrinter 處理 /api/printer 端點
+func handlerPrinter(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "Method not allowed"})
+		return
+	}
+
+	if !dataLoaded {
+		if err := loadAllData(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+	}
+
+	// 檢查是否指定單一印表機
+	idStr := r.URL.Query().Get("id")
+	ip := r.URL.Query().Get("ip")
+
+	if idStr != "" {
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "id 必須是數字"})
+			return
+		}
+		handlerPrinterByID(w, r)
+		return
+	}
+
+	if ip != "" {
+		// 解析單一印表機
+		printer, ok := getPrinterByIP(ip)
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "找不到該 IP 的印表機"})
+			return
+		}
+		json.NewEncoder(w).Encode(APIResponse{Success: true, Data: printer})
+		return
+	}
+
+	// 返回全部
+	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: dashboardCache})
+}
+
+// handlerPrinterByID 處理 /api/printer/{id} 端點
+func handlerPrinterByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "Method not allowed"})
+		return
+	}
+
+	if !dataLoaded {
+		if err := loadAllData(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+	}
+
+	// 從 URL path 提取 ID
+	path := strings.TrimPrefix(r.URL.Path, "/api/printer/")
+	if path == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "請提供印表機 ID"})
+		return
+	}
+
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "ID 必須是數字"})
+		return
+	}
+
+	// 查找印表機
+	for _, p := range dashboardCacheData() {
+		if p.ID == id {
+			json.NewEncoder(w).Encode(APIResponse{Success: true, Data: p})
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(APIResponse{Success: false, Error: fmt.Sprintf("找不到 ID 為 %d 的印表機", id)})
+}
+
+// dashboardCacheData 解析快取的儀表板資料
+func dashboardCacheData() []DashboardPrinter {
+	if !dataLoaded || dashboardCache == nil {
+		return nil
+	}
+	var resp DashboardResponse
+	if err := json.Unmarshal(dashboardCache, &resp); err != nil {
+		return nil
+	}
+	return resp.Printers
+}
+
+// getPrinterByIP 依 IP 地址查找印表機
+func getPrinterByIP(ip string) (DashboardPrinter, bool) {
+	printers := dashboardCacheData()
+	for _, p := range printers {
+		if p.IPAddress == ip {
+			return p, true
+		}
+	}
+	return DashboardPrinter{}, false
 }
 
 func supplyTypeToInt(t string) int {
