@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今日未列印印表機 | No Print Today</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+        :root {
+            --accent: #fb6a7d;
+            --accent-strong: #f43f5e;
+            --accent-soft: #fff1f4;
+            --blue: #3b9cff;
+            --ink: #172033;
+            --muted: #64748b;
+            --surface: #edf1f5;
+            --panel: #ffffff;
+            --line: #d9dee7;
+            --line-soft: #eef1f5;
+        }
+
+        * { box-sizing: border-box; }
+        html { width: 100%; overflow-x: hidden; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Plus Jakarta Sans", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background: var(--surface);
+            color: var(--ink);
+            overflow-x: hidden;
+        }
+        button, input, select, textarea { font: inherit; }
+
+        .glass-panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        .shell {
+            width: min(100%, 1280px);
+            margin: 0 auto;
+            padding: 0 14px 18px;
+            min-width: 0;
+        }
+
+        .hero {
+            min-height: 110px;
+            margin: 0 -14px 12px;
+            padding: 24px 22px 8px 34px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 860px);
+            gap: 18px;
+            align-items: center;
+            color: #ffffff;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        .hero-title {
+            margin: 0;
+            font-size: 48px;
+            line-height: 1.05;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .hero-subtitle {
+            margin-top: 8px;
+            color: #475569;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .hero-side {
+            display: grid;
+            grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .date-panel {
+            border: 1px solid rgba(0, 0, 0, 0.12);
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-height: 112px;
+            background: rgba(0, 0, 0, 0.03);
+        }
+
+        .date-panel-title {
+            margin: 0 0 8px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #475569;
+        }
+
+        .date-field {
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.10);
+            color: #111827;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        #dashboard-refresh-btn, #signout-btn {
+            border: 1px solid rgba(0, 0, 0, 0.12) !important;
+            border-radius: 8px !important;
+            background: rgba(0, 0, 0, 0.05) !important;
+            color: #111827 !important;
+            padding: 9px 13px !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            line-height: 1 !important;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+        #dashboard-refresh-btn:hover, #signout-btn:hover {
+            background: rgba(0, 0, 0, 0.10) !important;
+            transform: translateY(-1px);
+        }
+
+        #last-update { color: #475569 !important; font-size: 12px !important; font-weight: 700 !important; }
+
+        #printer-table-container {
+            margin: 0 !important;
+            border-radius: 8px !important;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+            padding: 12px !important;
+        }
+
+        #printer-table-container h3 {
+            margin: 0 0 10px !important;
+            color: var(--accent-strong) !important;
+            font-size: 17px !important;
+            line-height: 1.2 !important;
+            font-weight: 800 !important;
+        }
+
+        #printer-table {
+            width: 100%;
+            color: var(--ink);
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        #printer-table thead tr {
+            background: #f3f5f8 !important;
+            color: #334155 !important;
+        }
+        #printer-table tbody tr { border-color: var(--line-soft) !important; }
+        #printer-table tbody tr:nth-child(even) { background: #f8fafc; }
+        #printer-table tbody tr:hover { background: var(--accent-soft) !important; }
+        #printer-table .text-slate-400, #printer-table .text-slate-500 { color: var(--muted) !important; }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            animation: pulse 2s infinite;
+        }
+
+        .status-cell { display: flex; align-items: center; gap: 8px; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.58; }
+        }
+
+        #empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 760px) {
+            .hero {
+                margin: 0 -10px 10px;
+                padding: 20px 16px 14px 22px;
+                grid-template-columns: 1fr;
+            }
+            .hero-side { grid-template-columns: 1fr; }
+            .hero-title { font-size: 32px; }
+            .shell { padding: 0 10px 14px; }
+            #printer-table-container { padding: 10px !important; }
+            #printer-table-container h3 { font-size: 15px !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 登入畫面 -->
+    <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center" style="background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);">
+        <div class="text-center">
+            <h1 class="text-5xl font-extrabold mb-2 text-white">OPERATIONS<span class="text-indigo-500">CENTER</span></h1>
+            <p class="text-slate-400 font-medium mb-8">今日未列印印表機列表</p>
+            <button id="google-login-btn"
+                class="flex items-center gap-3 mx-auto bg-white text-slate-900 hover:bg-slate-100 font-bold py-3 px-8 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                onclick="handleGoogleLogin()">
+                <svg width="20" height="20" viewBox="0 0 48 48">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.65 0 6.53 5.78 5.04 13.42l7.46 5.79C13.64 15.08 18.3 9.5 24 9.5z"/>
+                    <path fill="#34A853" d="M46.85 24.49c.34-1.97.54-3.98.54-6.49 0-1.49-.13-2.9-.39-4.25H24v9.03h12.74c-.57 2.99-2.23 5.45-4.74 7.12l7.43 5.76c4.34-4.01 6.85-9.91 6.85-15.17z"/>
+                    <path fill="#4A90D9" d="M5.04 13.42C3.48 16.53 2.55 20.21 2.55 24s.93 7.47 2.49 10.58l-7.46 5.79C-1.54 37.01-3.04 30.92-3.04 24s1.5-13.01 4.09-18.58l4z"/>
+                    <path fill="#FBBC05" d="M24 48c6.48 0 11.93-2.13 15.89-5.76l-7.43-5.76c-2.14 1.44-4.88 2.36-8.46 2.36-6.54 0-12.08-4.42-14.04-10.4L5.04 34.58C6.53 42.22 14.65 48 24 48z"/>
+                </svg>
+                Sign in with Google
+            </button>
+            <p id="login-error" class="text-red-400 text-sm mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <!-- 儀表板內容 -->
+    <div id="dashboard-content" class="shell hidden">
+        <header class="hero">
+            <div>
+                <h1 class="hero-title">今日未列印印表機</h1>
+                <p class="hero-subtitle">total_count 與 printer_count 皆為 0 的印表機</p>
+                <div class="dashboard-actions">
+                    <button id="dashboard-refresh-btn" type="button" onclick="loadData()">重整</button>
+                    <div id="last-update"></div>
+                </div>
+            </div>
+            <div class="hero-side">
+                <div class="date-panel" aria-label="資料日期">
+                    <p class="date-panel-title">Date</p>
+                    <div class="date-field" id="today-date">--</div>
+                </div>
+                <div class="summary-strip" id="summary-strip" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+            </div>
+        </header>
+
+        <div id="printer-table-container">
+            <h3>
+                <svg class="w-5 h-5 inline mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                印表機列表
+            </h3>
+            <div id="empty-state" class="hidden">今日所有印表機都有列印紀錄</div>
+            <table id="printer-table" class="hidden">
+                <thead>
+                    <tr>
+                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">狀態</th>
+                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">單位</th>
+                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">地點</th>
+                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden md:table-cell">型號</th>
+                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden lg:table-cell">IP</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase hidden xl:table-cell">最近統計時間</th>
+                        <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="printer-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 歷史彈窗 -->
+    <div id="history-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel w-full max-w-4xl max-h-[80vh] rounded-[2.5rem] overflow-hidden flex flex-col">
+            <div class="p-8 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h2 id="modal-title" class="text-3xl font-black">歷史數據統計</h2>
+                    <p id="modal-subtitle" class="text-indigo-400 font-mono text-sm"></p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-4xl">&times;</button>
+            </div>
+            <div class="p-8 overflow-y-auto" id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+        let cachedPrinters = [];
+        let cachedMetrics = {};
+
+        function getTodayDateString() {
+            const todayLocal = new Date();
+            return `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+        }
+
+        function formatDashboardDate(dateString) {
+            if (!dateString) return '--';
+            const date = new Date(dateString);
+            if (Number.isNaN(date.getTime())) return '--';
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // == 載入資料 ==
+        async function loadData() {
+            setRefreshLoading(true);
+            try {
+                // 取得所有印表機
+                const { data: rawPrinters } = await supabaseClient
+                    .from('printers')
+                    .select('*')
+                    .order('unit', { ascending: true })
+                    .order('location', { ascending: true });
+
+                // 取得今日 metrics
+                const today = getTodayDateString();
+                const { data: rawMetrics } = await supabaseClient
+                    .from('daily_stats')
+                    .select('*')
+                    .eq('recorded_at::date', today);
+
+                // 建立 IP -> metrics 對照
+                cachedMetrics = {};
+                (rawMetrics || []).forEach(m => {
+                    if (!cachedMetrics[m.ip_address]) cachedMetrics[m.ip_address] = [];
+                    cachedMetrics[m.ip_address].push(m);
+                });
+
+                // 篩選今日 total_count = 0 且 printer_count = 0 的印表機
+                const zeroPrinters = [];
+                (rawPrinters || []).forEach(p => {
+                    const metrics = cachedMetrics[p.ip_address] || [];
+                    const todayMetric = metrics.find(m => (m.recorded_at || '').substring(0, 10) === today);
+
+                    if (!todayMetric) {
+                        // 今日無任何紀錄
+                        zeroPrinters.push({
+                            ...p,
+                            has_today_data: false,
+                            last_recorded: null,
+                            total_count: 0,
+                            print_count: 0
+                        });
+                        return;
+                    }
+
+                    // 今日有紀錄但 total_count 和 printer_count 皆為 0
+                    if (todayMetric.total_count === 0 && todayMetric.printer_count === 0) {
+                        zeroPrinters.push({
+                            ...p,
+                            has_today_data: true,
+                            last_recorded: todayMetric.recorded_at,
+                            total_count: todayMetric.total_count || 0,
+                            print_count: todayMetric.print_count || 0
+                        });
+                    }
+                });
+
+                cachedPrinters = zeroPrinters;
+
+                // 渲染
+                renderSummary(zeroPrinters.length, rawPrinters?.length || 0);
+                renderTable(zeroPrinters);
+                document.getElementById('last-update').innerText = `最後更新：${new Date().toLocaleString('zh-TW', { hour12: false })}`;
+                document.getElementById('today-date').textContent = formatDashboardDate(today);
+            } catch (e) {
+                console.error('載入失敗:', e);
+            } finally {
+                setRefreshLoading(false);
+            }
+        }
+
+        function renderSummary(zeroCount, totalCount) {
+            const strip = document.getElementById('summary-strip');
+            strip.innerHTML = `
+                <div class="date-field" style="flex:1;background:#fef2f2;border-color:#fecaca;color:#dc2626;">
+                    今日未列印：${zeroCount} 台
+                </div>
+                <div class="date-field" style="flex:1;background:#f0fdf4;border-color:#bbf7d0;color:#16a34a;">
+                    今日有列印：${totalCount - zeroCount} 台
+                </div>
+                <div class="date-field" style="flex:1;background:#f8fafc;border-color:#e2e8f0;color:#334155;">
+                    全部：${totalCount} 台
+                </div>
+            `;
+        }
+
+        function renderTable(printers) {
+            const table = document.getElementById('printer-table');
+            const empty = document.getElementById('empty-state');
+            const tbody = document.getElementById('printer-tbody');
+
+            if (printers.length === 0) {
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            table.classList.remove('hidden');
+            empty.classList.add('hidden');
+
+            tbody.innerHTML = printers.map(p => {
+                const statusLabel = p.has_today_data ? '有紀錄但為0' : '無今日紀錄';
+                const statusColor = p.has_today_data ? '#f59e0b' : '#ef4444';
+                const lastRecorded = p.last_recorded ? formatDashboardDate(p.last_recorded) : '無';
+                return `
+                    <tr class="border-t border-white/5">
+                        <td class="px-4 py-3">
+                            <div class="status-cell">
+                                <div class="status-dot" style="background:${statusColor};box-shadow:0 0 8px ${statusColor}66;"></div>
+                                <span class="text-xs font-bold" style="color:${statusColor}">${statusLabel}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${p.unit || '-'}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-slate-900">${p.location || '-'}</div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model || '-'}</td>
+                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address || '-'}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs hidden xl:table-cell text-right">${lastRecorded}</td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <a href="printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address || '')}" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
+                            <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300">歷史</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function setRefreshLoading(isLoading) {
+            const btn = document.getElementById('dashboard-refresh-btn');
+            if (!btn) return;
+            btn.disabled = isLoading;
+            btn.textContent = isLoading ? '更新中...' : '重整';
+            btn.classList.toggle('opacity-60', isLoading);
+            btn.classList.toggle('cursor-not-allowed', isLoading);
+        }
+
+        // == 歷史彈窗 ==
+        async function showHistory(printerId) {
+            const p = cachedPrinters.find(printer => printer.id === printerId);
+            if (!p) return;
+
+            document.getElementById('modal-title').innerText = `${p.location} 歷史數據統計`;
+            document.getElementById('modal-subtitle').innerText = `${p.ip_address} (${p.model})`;
+
+            // 載入該印表機的歷史趨勢
+            const { data: trendData } = await supabaseClient
+                .from('daily_stats')
+                .select('*')
+                .eq('ip_address', p.ip_address)
+                .order('recorded_at', { ascending: true });
+
+            const logs = trendData || [];
+            const yearlyStats = {};
+            logs.forEach(l => {
+                const date = new Date(l.recorded_at);
+                const year = date.getFullYear();
+                const month = date.getMonth() + 1;
+                const total = l.total_count || 0;
+                if (!yearlyStats[year]) yearlyStats[year] = { total: 0, months: {} };
+                yearlyStats[year].total += total;
+                yearlyStats[year].months[month] = (yearlyStats[year].months[month] || 0) + total;
+            });
+
+            const dates = logs.map(l => l.recorded_at?.substring(0, 10));
+            const totals = logs.map(l => l.total_count || 0);
+
+            let html = `
+                <div class="space-y-8">
+                    <section>
+                        <h4 class="text-indigo-400 font-bold mb-4 flex items-center">
+                            <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> 每日印量趨勢
+                        </h4>
+                        <div style="height:180px;"><canvas id="modal-chart"></canvas></div>
+                    </section>
+                    <section>
+                        <h4 class="text-indigo-400 font-bold mb-4 flex items-center">
+                            <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> 年度與月份統計
+                        </h4>
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-slate-500 text-xs uppercase font-bold border-b border-white/10">
+                                    <th class="py-3">年度/月份</th>
+                                    <th class="py-3 text-right">總印量</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                ${Object.keys(yearlyStats || {}).sort((a, b) => b - a).map(year => {
+                                    const yearData = yearlyStats[year];
+                                    let rows = `<tr class="border-b border-white/5 bg-indigo-500/5"><td class="py-3 font-black text-white">${year} 年總計</td><td class="py-3 text-right font-black text-indigo-400">${yearData.total.toLocaleString()}</td></tr>`;
+                                    Object.keys(yearData.months).sort((a, b) => b - a).forEach(month => {
+                                        rows += `<tr class="border-b border-white/5"><td class="py-2 pl-4 text-slate-400">${month} 月</td><td class="py-2 text-right text-slate-300">${yearData.months[month].toLocaleString()}</td></tr>`;
+                                    });
+                                    return rows;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            `;
+
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('history-modal').classList.remove('hidden');
+
+            if (dates.length > 0 && typeof Chart !== 'undefined') {
+                new Chart(document.getElementById('modal-chart'), {
+                    type: 'bar',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: '每日總印量',
+                            data: totals,
+                            backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                            borderColor: 'rgba(99, 102, 241, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 15, font: { size: 10 } } },
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: true }
+                        }
+                    }
+                });
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('history-modal').classList.add('hidden');
+        }
+
+        // == 認證邏輯 ==
+        async function handleGoogleLogin() {
+            const btn = document.getElementById('google-login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '登入中...';
+
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + window.location.pathname }
+            });
+
+            if (error) {
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = error.message;
+                errEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign in with Google';
+            }
+        }
+
+        function setAuthState(isLoggedIn) {
+            document.getElementById('login-screen').style.display = isLoggedIn ? 'none' : 'flex';
+            document.getElementById('dashboard-content').classList.toggle('hidden', !isLoggedIn);
+
+            if (isLoggedIn && currentUser) {
+                const header = document.querySelector('header');
+                const existing = document.getElementById('signout-btn');
+                if (existing) existing.remove();
+
+                const btn = document.createElement('button');
+                btn.id = 'signout-btn';
+                btn.className = 'px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium transition-colors border border-white/10';
+                btn.textContent = `Sign out (${currentUser.email})`;
+                btn.onclick = handleSignOut;
+
+                const lastUpdateEl = document.getElementById('last-update');
+                const actions = document.querySelector('.dashboard-actions');
+                if (actions && lastUpdateEl) {
+                    actions.insertBefore(btn, lastUpdateEl);
+                } else {
+                    header.appendChild(btn);
+                }
+            }
+        }
+
+        async function handleSignOut() {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        }
+
+        // == 初始化 ==
+        async function init() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+
+            if (session) {
+                currentUser = session.user;
+                setAuthState(true);
+                loadData();
+            } else {
+                setAuthState(false);
+            }
+
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                if (session) {
+                    currentUser = session.user;
+                    setAuthState(true);
+                    loadData();
+                } else {
+                    currentUser = null;
+                    setAuthState(false);
+                }
+            });
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
