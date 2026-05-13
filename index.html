@@ -195,7 +195,8 @@
         }
 
         #dashboard-refresh-btn:hover,
-        #signout-btn:hover {
+        #signout-btn:hover,
+        #no-print-link:hover {
             background: rgba(0, 0, 0, 0.10) !important;
             transform: translateY(-1px);
         }
@@ -936,6 +937,10 @@
                 <p class="dashboard-subtitle">全院印表機監控系統</p>
                 <div class="dashboard-actions">
                     <button id="dashboard-refresh-btn" type="button" onclick="handleDashboardRefresh()">重整</button>
+                    <a href="no_print_today.html" class="dashboard-action-link" id="no-print-link" style="border:1px solid rgba(0,0,0,0.12);border-radius:8px;background:rgba(0,0,0,0.05);color:#111827;padding:9px 13px;font-size:13px;font-weight:800;text-decoration:none;transition:background 0.15s ease,transform 0.15s ease;display:inline-flex;align-items:center;gap:4px;">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        今日未列印
+                    </a>
                     <div id="last-update"></div>
                 </div>
             </div>
