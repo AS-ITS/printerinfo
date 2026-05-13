@@ -1253,7 +1253,12 @@
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
             renderScopedUnitChart(scopedPrinters);
-            renderPrinterCountChart(cachedPrinters);
+            if (currentFilterUnit === 'all') {
+                renderPrinterCountChart(cachedPrinters);
+            } else {
+                const section = document.getElementById('printer-count-section');
+                if (section) section.classList.add('hidden');
+            }
             renderMonthlyComparisonChart(scopedPrinters);
             renderSupplyWarnings(scopedPrinters);
             renderPrinters(scopedPrinters);
