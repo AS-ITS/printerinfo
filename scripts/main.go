@@ -359,7 +359,7 @@ func handlerPrinter(w http.ResponseWriter, r *http.Request) {
 	ip := r.URL.Query().Get("ip")
 
 	if idStr != "" {
-		id, err := strconv.Atoi(idStr)
+		_, err := strconv.Atoi(idStr)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "id 必須是數字"})
