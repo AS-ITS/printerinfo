@@ -171,17 +171,6 @@
         #printer-table tbody tr:hover { background: var(--accent-soft) !important; }
         #printer-table .text-slate-400, #printer-table .text-slate-500 { color: var(--muted) !important; }
 
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #ef4444;
-            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
-            animation: pulse 2s infinite;
-        }
-
-        .status-cell { display: flex; align-items: center; gap: 8px; }
-
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.58; }
@@ -262,12 +251,17 @@
             <table id="printer-table" class="hidden">
                 <thead>
                     <tr>
-                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">狀態</th>
                         <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">單位</th>
                         <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">地點</th>
                         <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden md:table-cell">型號</th>
                         <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden lg:table-cell">IP</th>
                         <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase hidden xl:table-cell">最近統計時間</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">total_count</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">printer_count</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">print_count</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">copy_count</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase hidden xl:table-cell">scan_total</th>
+                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">fax_count</th>
                         <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">操作</th>
                     </tr>
                 </thead>
@@ -345,10 +339,13 @@
                         // 今日無任何紀錄
                         zeroPrinters.push({
                             ...p,
-                            has_today_data: false,
                             last_recorded: null,
                             total_count: 0,
-                            print_count: 0
+                            printer_count: 0,
+                            print_count: 0,
+                            copy_count: 0,
+                            scan_total: 0,
+                            fax_count: 0
                         });
                         return;
                     }
@@ -357,10 +354,13 @@
                     if (todayMetric.total_count === 0 && todayMetric.printer_count === 0) {
                         zeroPrinters.push({
                             ...p,
-                            has_today_data: true,
                             last_recorded: todayMetric.recorded_at,
                             total_count: todayMetric.total_count || 0,
-                            print_count: todayMetric.print_count || 0
+                            printer_count: todayMetric.printer_count || 0,
+                            print_count: todayMetric.print_count || 0,
+                            copy_count: todayMetric.copy_count || 0,
+                            scan_total: todayMetric.scan_total || 0,
+                            fax_count: todayMetric.fax_count || 0
                         });
                     }
                 });
@@ -409,17 +409,9 @@
             empty.classList.add('hidden');
 
             tbody.innerHTML = printers.map(p => {
-                const statusLabel = p.has_today_data ? '有紀錄但為0' : '無今日紀錄';
-                const statusColor = p.has_today_data ? '#f59e0b' : '#ef4444';
                 const lastRecorded = p.last_recorded ? formatDashboardDate(p.last_recorded) : '無';
                 return `
                     <tr class="border-t border-white/5">
-                        <td class="px-4 py-3">
-                            <div class="status-cell">
-                                <div class="status-dot" style="background:${statusColor};box-shadow:0 0 8px ${statusColor}66;"></div>
-                                <span class="text-xs font-bold" style="color:${statusColor}">${statusLabel}</span>
-                            </div>
-                        </td>
                         <td class="px-4 py-3 text-slate-500 text-xs font-bold">${p.unit || '-'}</td>
                         <td class="px-4 py-3">
                             <div class="font-bold text-slate-900">${p.location || '-'}</div>
@@ -427,6 +419,12 @@
                         <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model || '-'}</td>
                         <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address || '-'}</td>
                         <td class="px-4 py-3 text-slate-500 text-xs hidden xl:table-cell text-right">${lastRecorded}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.total_count}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.printer_count}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.print_count}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.copy_count}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right hidden xl:table-cell">${p.scan_total}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.fax_count}</td>
                         <td class="px-4 py-3 text-center whitespace-nowrap">
                             <a href="printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address || '')}" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
                             <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300">歷史</button>
