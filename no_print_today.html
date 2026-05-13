@@ -161,6 +161,7 @@
             color: var(--ink);
             border-collapse: separate;
             border-spacing: 0;
+            min-width: 700px;
         }
         #printer-table thead tr {
             background: #f3f5f8 !important;
@@ -170,6 +171,7 @@
         #printer-table tbody tr:nth-child(even) { background: #f8fafc; }
         #printer-table tbody tr:hover { background: var(--accent-soft) !important; }
         #printer-table .text-slate-400, #printer-table .text-slate-500 { color: var(--muted) !important; }
+        #table-wrapper { overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -195,6 +197,17 @@
             .shell { padding: 0 10px 14px; }
             #printer-table-container { padding: 10px !important; }
             #printer-table-container h3 { font-size: 15px !important; }
+        }
+
+        #scroll-hint {
+            display: none;
+            text-align: center;
+            padding: 6px 0 4px;
+            font-size: 11px;
+            color: var(--muted);
+        }
+        @media (max-width: 900px) {
+            #scroll-hint { display: block; }
         }
     </style>
 </head>
@@ -247,24 +260,24 @@
                 </svg>
                 印表機列表
             </h3>
+            <p id="scroll-hint">← 左右滑動查看完整欄位 →</p>
             <div id="empty-state" class="hidden">今日所有印表機都有列印紀錄</div>
-            <table id="printer-table" class="hidden">
-                <thead>
-                    <tr>
-                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">單位</th>
-                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">地點</th>
-                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden md:table-cell">型號</th>
-                        <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase hidden lg:table-cell">IP</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase hidden xl:table-cell">最近統計時間</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">total_count</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">printer_count</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">print_count</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">copy_count</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase hidden xl:table-cell">scan_total</th>
-                        <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">fax_count</th>
-                        <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">操作</th>
-                    </tr>
-                </thead>
+            <div id="table-wrapper">
+                <table id="printer-table" class="hidden">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">單位</th>
+                            <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">型號</th>
+                            <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">IP</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">最近統計時間</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">total_count</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">printer_count</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">print_count</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">copy_count</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">scan_total</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">fax_count</th>
+                        </tr>
+                    </thead>
                 <tbody id="printer-tbody"></tbody>
             </table>
         </div>
@@ -409,26 +422,19 @@
             empty.classList.add('hidden');
 
             tbody.innerHTML = printers.map(p => {
-                const lastRecorded = p.last_recorded ? formatDashboardDate(p.last_recorded) : '無';
+                const recordedAt = p.last_recorded ? p.last_recorded.substring(0, 16).replace('T', ' ') : '無';
                 return `
                     <tr class="border-t border-white/5">
                         <td class="px-4 py-3 text-slate-500 text-xs font-bold">${p.unit || '-'}</td>
-                        <td class="px-4 py-3">
-                            <div class="font-bold text-slate-900">${p.location || '-'}</div>
-                        </td>
-                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model || '-'}</td>
-                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address || '-'}</td>
-                        <td class="px-4 py-3 text-slate-500 text-xs hidden xl:table-cell text-right">${lastRecorded}</td>
+                        <td class="px-4 py-3 text-slate-400 text-xs">${p.model || '-'}</td>
+                        <td class="px-4 py-3 font-mono text-xs">${p.ip_address || '-'}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${recordedAt}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.total_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.printer_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.print_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.copy_count}</td>
-                        <td class="px-4 py-3 font-mono text-xs text-right hidden xl:table-cell">${p.scan_total}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${p.scan_total}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.fax_count}</td>
-                        <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <a href="printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address || '')}" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
-                            <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300">歷史</button>
-                        </td>
                     </tr>
                 `;
             }).join('');
