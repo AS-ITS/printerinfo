@@ -363,10 +363,148 @@
         }
 
         #printer-grid table {
-            min-width: 940px;
+            width: 100%;
+            min-width: 600px;
             color: var(--ink);
             border-collapse: separate;
             border-spacing: 0;
+        }
+        #printer-grid thead tr {
+            background: #f3f5f8 !important;
+            color: #334155 !important;
+        }
+        #printer-grid .head-status,
+        #printer-grid .head-unit,
+        #printer-grid .head-loc,
+        #printer-grid .head-model,
+        #printer-grid .head-color,
+        #printer-grid .head-ip,
+        #printer-grid .head-today,
+        #printer-grid .head-toner,
+        #printer-grid .head-ink,
+        #printer-grid .head-paper,
+        #printer-grid .head-total,
+        #printer-grid .head-action {
+            padding: 12px 14px;
+            font-weight: 800;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0;
+        }
+        #printer-grid .head-status,
+        #printer-grid .head-unit,
+        #printer-grid .head-loc,
+        #printer-grid .head-model,
+        #printer-grid .head-ip {
+            text-align: left;
+        }
+        #printer-grid .head-color,
+        #printer-grid .head-today,
+        #printer-grid .head-toner,
+        #printer-grid .head-ink,
+        #printer-grid .head-paper,
+        #printer-grid .head-total,
+        #printer-grid .head-action {
+            text-align: center;
+        }
+        #printer-grid .head-ip,
+        #printer-grid .head-total {
+            text-align: right;
+        }
+
+        @media (max-width: 1220px) {
+            #printer-grid table { min-width: 0; }
+            #printer-grid .head-model,
+            #printer-grid .head-color { display: none; }
+        }
+        @media (max-width: 980px) {
+            #printer-grid .head-unit { display: none; }
+            #printer-grid .head-toner,
+            #printer-grid .head-ink { display: none; }
+        }
+        @media (max-width: 760px) {
+            #printer-grid .head-model,
+            #printer-grid .head-color,
+            #printer-grid .head-ip,
+            #printer-grid .head-paper { display: none; }
+        }
+        @media (max-width: 520px) {
+            #printer-grid .head-unit,
+            #printer-grid .head-toner,
+            #printer-grid .head-ink { display: none; }
+        }
+
+        #printer-grid thead {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        #printer-grid tbody tr {
+            border-color: var(--line-soft) !important;
+        }
+        #printer-grid tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        #printer-grid tbody tr:hover {
+            background: var(--accent-soft) !important;
+        }
+        #printer-grid tbody td {
+            padding: 12px 14px;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        #printer-grid tbody td > .status-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        #printer-grid tbody td > .status-cell > .status-text {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        #printer-grid tbody td > .supply-chip {
+            display: inline-flex;
+            min-width: 44px;
+            justify-content: flex-end;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        #printer-grid tbody td > .action-link {
+            border-bottom: 1px solid transparent;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        #printer-grid tbody td > .action-link:hover {
+            border-bottom-color: currentColor;
+        }
+        #printer-grid .td-loc {
+            font-weight: 800;
+            color: #111827;
+        }
+        #printer-grid .td-model {
+            color: var(--muted);
+            font-size: 11px;
+        }
+        #printer-grid .td-ip {
+            color: var(--muted);
+            font-family: monospace;
+            font-size: 12px;
+        }
+        #printer-grid .td-today-num {
+            font-size: 20px;
+            font-weight: 800;
+            color: #111827;
+        }
+        #printer-grid .td-today-hint {
+            color: var(--muted);
+            font-size: 10px;
+        }
+        #printer-grid .td-total {
+            font-family: monospace;
+            font-size: 12px;
+            color: #cbd5e1;
         }
 
         #printer-grid thead tr {
@@ -1089,21 +1227,21 @@
 
                 <!-- 印表機條列清單 -->
                 <div id="printer-grid" class="glass-panel rounded-2xl overflow-hidden mb-8">
-                    <table class="w-full text-sm">
+                    <table>
                         <thead>
-                            <tr class="bg-white/5 text-slate-400 text-xs">
-                                <th class="px-4 py-3 font-bold text-left">狀態</th>
-                                <th class="px-4 py-3 font-bold text-left">單位</th>
-                                <th class="px-4 py-3 font-bold text-left">地點</th>
-                                <th class="px-4 py-3 font-bold text-left hidden md:table-cell">型號</th>
-                                <th class="px-4 py-3 font-bold text-center hidden md:table-cell">彩色</th>
-                                <th class="px-4 py-3 font-bold text-left hidden lg:table-cell">IP</th>
-                                <th class="px-4 py-3 font-bold text-right">今日</th>
-                                <th class="px-4 py-3 font-bold text-right hidden md:table-cell">碳粉</th>
-                                <th class="px-4 py-3 font-bold text-right hidden md:table-cell">墨水</th>
-                                <th class="px-4 py-3 font-bold text-right hidden lg:table-cell">紙張</th>
-                                <th class="px-4 py-3 font-bold text-right hidden xl:table-cell">累計</th>
-                                <th class="px-4 py-3 font-bold text-center">操作</th>
+                            <tr>
+                                <th class="head-status">狀態</th>
+                                <th class="head-unit">單位</th>
+                                <th class="head-loc">地點</th>
+                                <th class="head-model">型號</th>
+                                <th class="head-color">彩色</th>
+                                <th class="head-ip">IP</th>
+                                <th class="head-today">今日</th>
+                                <th class="head-toner">碳粉</th>
+                                <th class="head-ink">墨水</th>
+                                <th class="head-paper">紙張</th>
+                                <th class="head-total">累計</th>
+                                <th class="head-action">操作</th>
                             </tr>
                         </thead>
                         <tbody id="printer-table-body">
