@@ -210,7 +210,7 @@
 
         .summary-strip {
             display: grid;
-            grid-template-columns: minmax(150px, 1.18fr) minmax(92px, 0.62fr) minmax(168px, 1.25fr);
+            grid-template-columns: minmax(150px, 1.18fr) minmax(120px, 0.94fr) minmax(120px, 0.94fr) minmax(168px, 1.25fr) minmax(168px, 1.25fr) minmax(92px, 0.62fr);
             gap: 10px;
             min-width: 0;
         }
@@ -1487,13 +1487,13 @@
                     <p class="summary-hint">今日 ${scopeLabel}</p>
                 </div>
                 <div class="summary-card" style="flex: 1;">
-                    <p class="summary-value">${(s.today_copy || 0).toLocaleString()}</p>
-                    <p class="summary-label">影印數量</p>
+                    <p class="summary-value">${(s.today_fax || 0).toLocaleString()}</p>
+                    <p class="summary-label">傳真數量</p>
                     <p class="summary-hint">今日 ${scopeLabel}</p>
                 </div>
                 <div class="summary-card" style="flex: 1;">
-                    <p class="summary-value">${(s.today_fax || 0).toLocaleString()}</p>
-                    <p class="summary-label">傳真數量</p>
+                    <p class="summary-value">${(s.today_copy || 0).toLocaleString()}</p>
+                    <p class="summary-label">影印數量</p>
                     <p class="summary-hint">今日 ${scopeLabel}</p>
                 </div>
                 <div class="summary-card" style="flex: 1.25;">
@@ -1501,15 +1501,15 @@
                     <p class="summary-label">總數量</p>
                     <p class="summary-hint">列印+影印+傳真</p>
                 </div>
-                <div class="summary-card" style="flex: 0.62;">
-                    <p class="summary-value">${s.total_printers}</p>
-                    <p class="summary-label">印表機總數</p>
-                    <p class="summary-hint">目前範圍</p>
-                </div>
                 <div class="summary-card" style="flex: 1.25;">
                     <p class="summary-value">${(grandTotal || 0).toLocaleString()}</p>
                     <p class="summary-label">期間總印量</p>
                     <p class="summary-hint">至今累計</p>
+                </div>
+                <div class="summary-card" style="flex: 0.62;">
+                    <p class="summary-value">${s.total_printers}</p>
+                    <p class="summary-label">印表機總數</p>
+                    <p class="summary-hint">目前範圍</p>
                 </div>
             `;
         }
