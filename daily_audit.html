@@ -107,6 +107,10 @@
         .badge-warn { background: #fefce8; color: #ca8a04; }
         .badge-danger { background: #fef2f2; color: #dc2626; }
         .badge-info { background: #eff6ff; color: #2563eb; }
+        .badge-neg { background: #fef2f2; color: #b91c1c; }
+        .badge-miss { background: #fff7ed; color: #c2410c; }
+        .badge-field { background: #f0fdfa; color: #0e7490; }
+        .badge-dup { background: #fdf4ff; color: #a219ef; }
 
         #table-section { margin: 0 !important; border-radius: 8px !important; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(15,23,42,0.08); padding: 12px !important; }
         #table-section h3 { margin: 0 0 10px !important; color: var(--accent-strong) !important; font-size: 17px !important; font-weight: 800 !important; }
@@ -144,9 +148,12 @@
         <header class="hero">
             <div>
                 <h1 class="hero-title">每日印量檢查工具</h1>
-                <p class="hero-subtitle">檢查 daily_stats 的增量計算是否合理</p>
+                <p class="hero-subtitle" id="mode-subtitle">檢查 daily_stats 的增量計算是否合理</p>
+                <p id="gt-summary" class="hero-subtitle" style="display:none;margin-top:6px;color:var(--accent-strong);"></p>
                 <div class="dashboard-actions">
                     <button id="check-btn" class="action-btn" onclick="runAudit()">開始檢查</button>
+                    <button id="export-btn" class="action-btn" onclick="exportCSV()" disabled>匯出 CSV</button>
+                    <input id="threshold-input" type="number" min="1" value="500" style="width:80px" class="action-btn" title="日均異常門檻">
                     <a class="back-link" href="index.html">回首頁</a>
                 </div>
             </div>
@@ -172,6 +179,8 @@
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">間隔天數</th>
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">總增量</th>
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">日均</th>
+                            <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">異常類型</th>
+                            <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">說明</th>
                             <th class="px-4 py-3 font-bold text-center text-xs text-slate-500 uppercase">風險</th>
                         </tr>
                     </thead>
@@ -198,7 +207,7 @@
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        function renderSummary(gaps, resets, largeJumps, totalPrinters) {
+        function renderSummary(totalPrinters, gaps, resets, largeJumps, negativeDeltas, consistencyMisses, perFieldAvg, duplicates) {
             const cards = document.getElementById('summary-cards');
             cards.innerHTML = `
                 <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
@@ -206,171 +215,340 @@
                     <div class="lbl">總印表機數</div>
                 </div>
                 <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
-                    <div class="num" style="color:#2563eb;">${gaps.length}</div>
+                    <div class="num" style="color:#dc2626;">${resets.length + negativeDeltas.length}</div>
+                    <div class="lbl">counter 重置 / 負增量</div>
+                </div>
+                <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
+                    <div class="num" style="color:#ca8a04;">${gaps.length}</div>
                     <div class="lbl">記錄間隔異常（>1天）</div>
                 </div>
                 <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
-                    <div class="num" style="color:#ca8a04;">${resets.length}</div>
-                    <div class="lbl">counter 重置</div>
+                    <div class="num" style="color:#0e7490;">${perFieldAvg.length}</div>
+                    <div class="lbl">欄位級日均異常</div>
                 </div>
                 <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
-                    <div class="num" style="color:#dc2626;">${largeJumps.length}</div>
-                    <div class="lbl">日均異常（>500）</div>
+                    <div class="num" style="color:#c2410c;">${consistencyMisses.length}</div>
+                    <div class="lbl">daily_total 不一致</div>
+                </div>
+                <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
+                    <div class="num" style="color:#a219ef;">${duplicates.length}</div>
+                    <div class="lbl">重複記錄</div>
                 </div>
             `;
         }
 
+        function getParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                mode: params.get('mode') || 'default',
+                threshold: parseInt(params.get('daily_avg_threshold')) || 500
+            };
+        }
+
+        function buildRow(a) {
+            const cls = a.riskCls || 'badge-info';
+            const label = a.riskLabel || a.risk;
+            const typeLabels = {
+                reset: 'counter重置', negPrint: '列印負增量', negCopy: '影印負增量',
+                negScan: '掃描負增量', negFax: '傳真負增量', dailyTotalMiss: 'daily_total不一致',
+                fieldAvg: '欄位日均異常', gap: '間隔異常', largeJump: '日均異常',
+                groundTruth: 'GT差異', duplicate: '重複記錄'
+            };
+            const typeHtml = a.anomalyType
+                ? `<td class="px-4 py-3 text-center"><span class="badge ${cls}">${typeLabels[a.anomalyType] || a.anomalyType}</span></td>`
+                : '';
+            const detailCol = a.detail
+                ? `<td class="px-4 py-3 mono text-right" style="max-width:200px;word-break:break-all;">${a.detail}</td>`
+                : '';
+            return `
+                    <tr class="border-t border-white/5">
+                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${a.unit}</td>
+                        <td class="px-4 py-3 text-slate-900 text-xs font-bold">${a.location}</td>
+                        <td class="px-4 py-3 mono">${a.ip}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">${a.model || '-'}</td>
+                        <td class="px-4 py-3 mono text-right">${a.date}</td>
+                        <td class="px-4 py-3 mono text-right">${a.currentTotal != null ? a.currentTotal.toLocaleString() : ''}</td>
+                        <td class="px-4 py-3 mono text-right">${a.prevTotal != null ? a.prevTotal.toLocaleString() : ''}</td>
+                        <td class="px-4 py-3 mono text-right">${a.prevDate || ''}</td>
+                        <td class="px-4 py-3 mono text-right">${a.gapDays != null ? a.gapDays : ''}</td>
+                        <td class="px-4 py-3 mono text-right">${a.deltaTotal != null ? a.deltaTotal.toLocaleString() : ''}</td>
+                        <td class="px-4 py-3 mono text-right">${a.dailyAvg != null ? a.dailyAvg.toLocaleString() : ''}</td>
+                        ${detailCol}
+                        ${typeHtml}
+                        <td class="px-4 py-3 text-center"><span class="badge ${cls}">${label}</span></td>
+                    </tr>`;
+        }
+
+        function exportCSV() {
+            if (!window._auditData || window._auditData.length === 0) return;
+            const cols = ['unit','location','ip','model','date','currentTotal','prevTotal','prevDate','gapDays','deltaTotal','dailyAvg','detail','anomalyType','riskLabel'];
+            const headers = ['單位','地點','IP','型號','日期','本次累計','上次累計','上次日期','間隔','總增量','日均','說明','異常類型','風險'];
+            const rows = [headers.join(',')];
+            window._auditData.forEach(a => {
+                rows.push(cols.map(c => {
+                    const v = a[c] ?? '';
+                    return '"' + String(v).replace(/"/g, '""') + '"';
+                }).join(','));
+            });
+            const blob = new Blob(['\xEF\xBB\xBF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const el = document.createElement('a');
+            el.href = url; el.download = 'audit_' + new Date().toISOString().slice(0,10) + '.csv';
+            el.click(); URL.revokeObjectURL(url);
+        }
+
         async function runAudit() {
             const btn = document.getElementById('check-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const params = getParams();
+
             btn.disabled = true;
             btn.textContent = '檢查中...';
             document.getElementById('log-content').innerHTML = '';
+            document.getElementById('gt-summary').style.display = 'none';
+            exportBtn.disabled = true;
 
+            // === Ground Truth mode ===
+            if (params.mode === 'ground_truth') {
+                document.getElementById('mode-subtitle').textContent = 'Ground Truth 比對模式';
+                addLog('開始 Ground Truth 模式：直接從 printer_metrics 重算增量...', 'info');
+
+                const { data: rawPrinters } = await supabaseClient.from('printers').select('*');
+                const printerMap = {};
+                (rawPrinters || []).forEach(p => { printerMap[p.ip_address] = p; printerMap[p.id] = p; });
+
+                const { data: rawMetrics } = await supabaseClient.from('printer_metrics').select('*');
+                addLog(`取得 ${rawMetrics?.length || 0} 筆 printer_metrics 記錄`, 'info');
+
+                // Duplicate detection
+                const dupCounts = {};
+                (rawMetrics || []).forEach(m => {
+                    const key = m.printer_id + '_' + m.recorded_at.substring(0, 10);
+                    dupCounts[key] = (dupCounts[key] || 0) + 1;
+                });
+                const duplicates = Object.entries(dupCounts)
+                    .filter(function(e) { return e[1] > 1; })
+                    .map(function(e) {
+                        var key = e[0], cnt = e[1];
+                        var parts = key.split('_');
+                        var pidStr = parts[0], date = parts[1];
+                        var p = rawPrinters ? rawPrinters.find(function(x) { return String(x.id) === pidStr; }) : undefined;
+                        return { unit: (p?p.unit:'-'), location: (p?p.location:'-'), ip: 'printer_id=' + pidStr, model: (p?p.model:'-'), date: date, currentTotal: 0, prevTotal: 0, gapDays: 0, deltaTotal: 0, dailyAvg: 0, anomalyType: 'duplicate', risk: 'warn', riskLabel: 'warn', riskCls: 'badge-dup', detail: cnt + ' 筆重複' };
+                    });
+
+                // Deduplicate by printer_id + date (take latest)
+                const perPrinterDay = {};
+                (rawMetrics || []).forEach(m => {
+                    const key = m.printer_id + '_' + m.recorded_at.substring(0, 10);
+                    if (!perPrinterDay[key] || m.recorded_at > perPrinterDay[key].recorded_at) {
+                        perPrinterDay[key] = m;
+                    }
+                });
+
+                // Group by printer_id and sort
+                const byPrinter = {};
+                Object.values(perPrinterDay).forEach(m => {
+                    if (!byPrinter[m.printer_id]) byPrinter[m.printer_id] = [];
+                    byPrinter[m.printer_id].push(m);
+                });
+                for (const pid of Object.keys(byPrinter)) {
+                    byPrinter[pid].sort(function(a, b) { return a.recorded_at.localeCompare(b.recorded_at); });
+                }
+
+                // Recalculate deltas
+                const gtRecalc = {};
+                for (const [pid, rows] of Object.entries(byPrinter)) {
+                    for (let i = 1; i < rows.length; i++) {
+                        const cur = rows[i], prev = rows[i-1];
+                        const gapDays = Math.round((new Date(cur.recorded_at) - new Date(prev.recorded_at)) / 86400000);
+                        if (gapDays <= 0) continue;
+                        const ip = printerMap[pid] ? printerMap[pid].ip_address : '-';
+                        const date = cur.recorded_at.substring(0, 10);
+                        const dp = Math.max(0, (cur.print_count||0) - (prev.print_count||0));
+                        const dc = Math.max(0, (cur.copy_count||0) - (prev.copy_count||0));
+                        const ds = Math.max(0, (cur.scan_total||0) - (prev.scan_total||0));
+                        const df = Math.max(0, (cur.fax_count||0) - (prev.fax_count||0));
+                        const dt = Math.max(0, (cur.total_count||0) - (prev.total_count||0));
+                        gtRecalc[ip + '_' + date] = { pid: pid, ip: ip, date: date, gapDays: gapDays, dp: dp, dc: dc, ds: ds, df: df, dt: dt, sum: dp + dc + ds + df };
+                    }
+                }
+
+                const { data: allStats } = await supabaseClient.from('daily_stats').select('*');
+                const gtStats = {};
+                (allStats || []).forEach(s => { gtStats[s.ip_address + '_' + s.recorded_at.substring(0, 10)] = s; });
+
+                // Compare
+                const gtMissList = [];
+                let gtMatch = 0, gtMismatch = 0;
+
+                for (const [key, recalc] of Object.entries(gtRecalc)) {
+                    const stat = gtStats[key];
+                    if (!stat) {
+                        gtMissList.push({ unit: (printerMap[recalc.pid]?printerMap[recalc.pid].unit:'-'), location: (printerMap[recalc.pid]?printerMap[recalc.pid].location:'-'), ip: recalc.ip, model: (printerMap[recalc.pid]?printerMap[recalc.pid].model:'-'), date: recalc.date, currentTotal: recalc.dt, prevTotal: 0, gapDays: recalc.gapDays, deltaTotal: 0, dailyAvg: 0, anomalyType: 'groundTruth', risk: 'miss', riskLabel: 'GT差異', riskCls: 'badge-miss', detail: 'daily_stats 無此筆' });
+                        gtMismatch++; continue;
+                    }
+                    const missItems = [];
+                    if (stat.daily_print !== recalc.dp) missItems.push('print: GS=' + stat.daily_print + ' GT=' + recalc.dp);
+                    if (stat.daily_copy !== recalc.dc) missItems.push('copy: GS=' + stat.daily_copy + ' GT=' + recalc.dc);
+                    if (stat.daily_scan !== recalc.ds) missItems.push('scan: GS=' + stat.daily_scan + ' GT=' + recalc.ds);
+                    if (stat.daily_fax !== recalc.df) missItems.push('fax: GS=' + stat.daily_fax + ' GT=' + recalc.df);
+                    if (stat.daily_total !== recalc.dt) missItems.push('total: GS=' + stat.daily_total + ' GT=' + recalc.dt);
+                    if (stat.daily_total !== recalc.sum) missItems.push('total!=sum: GS=' + stat.daily_total + ' sum=' + recalc.sum);
+
+                    if (missItems.length > 0) {
+                        gtMissList.push({ unit: (printerMap[recalc.pid]?printerMap[recalc.pid].unit:'-'), location: (printerMap[recalc.pid]?printerMap[recalc.pid].location:'-'), ip: recalc.ip, model: (printerMap[recalc.pid]?printerMap[recalc.pid].model:'-'), date: recalc.date, currentTotal: stat.daily_total, prevTotal: recalc.dt, gapDays: recalc.gapDays, deltaTotal: missItems.length, dailyAvg: 0, anomalyType: 'groundTruth', risk: 'miss', riskLabel: 'GT差異', riskCls: 'badge-miss', detail: missItems.join(' | ') });
+                        gtMismatch++;
+                    } else {
+                        gtMatch++;
+                    }
+                }
+
+                renderSummary(rawPrinters ? rawPrinters.length : 0, [], duplicates, [], [], [], [], []);
+                const gtSummaryEl = document.getElementById('gt-summary');
+                gtSummaryEl.style.display = 'block';
+                gtSummaryEl.textContent = 'Ground Truth：共 ' + Object.keys(gtRecalc).length + ' 筆、匹配 ' + gtMatch + '、差異 ' + gtMismatch;
+
+                const allGTMisses = gtMissList.sort(function(a,b) { return (a.risk==='miss'?0:1)-(b.risk==='miss'?0:1); });
+                const allResults = allGTMisses.concat(duplicates);
+                const tbody = document.getElementById('audit-tbody');
+                const table = document.getElementById('audit-table');
+
+                if (allResults.length === 0) {
+                    table.classList.add('hidden');
+                    document.getElementById('log-content').innerHTML += '\n\xE2\x9C\x85 Ground Truth 比對完成：無異常！\n';
+                } else {
+                    table.classList.remove('hidden');
+                    tbody.innerHTML = allResults.map(function(a) { return buildRow(a); }).join('');
+                }
+
+                addLog('Ground Truth 檢查結束。匹配 ' + gtMatch + ' 筆，差異 ' + gtMismatch + ' 筆', 'ok');
+                btn.disabled = false;
+                btn.textContent = '重新檢查';
+                return;
+            }
+
+            // === Default mode (enhanced) ===
+            document.getElementById('mode-subtitle').textContent = '日均門檻：' + params.threshold;
             addLog('開始檢查 daily_stats 資料...', 'info');
 
-            // 取得所有印表機
-            const { data: rawPrinters } = await supabaseClient
-                .from('printers')
-                .select('*')
-                .order('unit', { ascending: true })
-                .order('location', { ascending: true });
-
+            const { data: rawPrinters } = await supabaseClient.from('printers').select('*').order('unit', { ascending: true }).order('location', { ascending: true });
             const printerMap = {};
-            (rawPrinters || []).forEach(p => {
-                printerMap[p.ip_address] = p;
-            });
+            (rawPrinters || []).forEach(p => { printerMap[p.ip_address] = p; });
 
-            // 取得全部 daily_stats 資料
-            const { data: allStats } = await supabaseClient
-                .from('daily_stats')
-                .select('*')
-                .order('recorded_at', { ascending: true });
+            const { data: allStats } = await supabaseClient.from('daily_stats').select('*').order('recorded_at', { ascending: true });
+            addLog('取得 ' + (allStats ? allStats.length : 0) + ' 筆 daily_stats 記錄', 'info');
 
-            addLog(`取得 ${allStats?.length || 0} 筆 daily_stats 記錄`, 'info');
-
-            // 按 IP 分組並排序
             const byIP = {};
-            (allStats || []).forEach(m => {
-                if (!byIP[m.ip_address]) byIP[m.ip_address] = [];
-                byIP[m.ip_address].push(m);
-            });
+            (allStats || []).forEach(m => { if (!byIP[m.ip_address]) byIP[m.ip_address] = []; byIP[m.ip_address].push(m); });
 
-            const gaps = [];      // 間隔 > 1 天
-            const resets = [];    // counter 歸零/倒退
-            const largeJumps = []; // 日均 > 500
-            let totalAnomalies = 0;
+            const gaps = [], resets = [], largeJumps = [];
+            const negDeltas = [], consistencyMisses = [], perFieldAvg = [];
 
             for (const [ip, rows] of Object.entries(byIP)) {
-                rows.sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+                rows.sort(function(a, b) { return a.recorded_at.localeCompare(b.recorded_at); });
+                let prevValid = null, prevValidDate = null;
 
-                let prevValid = null; // 上一次有效 counter
-                let prevValidDate = null;
-                let prevValidTotal = null;
-
-                for (let i = 0; i < rows.length; i++) {
-                    const row = rows[i];
-                    const hasCounter = row.total_count > 0 || row.print_count > 0 || row.copy_count > 0 || row.scan_total > 0 || row.fax_count > 0;
-
+                for (let ri = 0; ri < rows.length; ri++) {
+                    const row = rows[ri];
+                    const hasCounter = (row.total_count||0) + (row.print_count||0) + (row.copy_count||0) + (row.scan_total||0) + (row.fax_count||0) > 0;
                     if (!hasCounter) continue;
 
                     const currentDate = row.recorded_at.substring(0, 10);
+                    if (!prevValid) { prevValid = row; prevValidDate = currentDate; continue; }
 
-                    if (prevValid) {
-                        const prevDate = prevValidDate;
-                        const prevTotal = prevValidTotal;
+                    const prevDate = prevValidDate;
+                    const d1 = new Date(currentDate), d2 = new Date(prevDate);
+                    const gapDays = Math.round((d1 - d2) / 86400000);
+                    const p = printerMap[ip] || {};
 
-                        // 1. 檢查間隔天數
-                        const d1 = new Date(currentDate);
-                        const d2 = new Date(prevDate);
-                        const gapDays = Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
-
-                        // 2. 計算總增量
-                        const deltaTotal = row.total_count - prevTotal;
-
-                        const p = printerMap[ip] || {};
-
-                        if (gapDays > 1) {
-                            totalAnomalies++;
-                            gaps.push({
-                                unit: p.unit || '-',
-                                location: p.location || '-',
-                                ip: ip,
-                                model: p.model || '-',
-                                date: currentDate,
-                                currentTotal: row.total_count,
-                                prevTotal: prevTotal,
-                                prevDate: prevDate,
-                                gapDays: gapDays,
-                                deltaTotal: deltaTotal,
-                                dailyAvg: deltaTotal > 0 ? Math.round(deltaTotal / gapDays) : 0
-                            });
+                    // Per-field negative deltas
+                    const fields = [
+                        { key: 'negPrint', label: '列印', val: row.print_count, prev: prevValid.print_count },
+                        { key: 'negCopy', label: '影印', val: row.copy_count, prev: prevValid.copy_count },
+                        { key: 'negScan', label: '掃描', val: row.scan_total, prev: prevValid.scan_total },
+                        { key: 'negFax', label: '傳真', val: row.fax_count, prev: prevValid.fax_count }
+                    ];
+                    for (let fi = 0; fi < fields.length; fi++) {
+                        const f = fields[fi];
+                        const delta = (f.val||0) - (f.prev||0);
+                        if (delta < 0) {
+                            negDeltas.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: f.key, risk: 'danger', riskLabel: '負增量', riskCls: 'badge-neg', detail: f.label + ': ' + (f.val||0) + '\xE2\x86\x92' + (f.prev||0) + ' (\xE2\x88\x93' + delta + ')', currentTotal: 0, prevTotal: 0, gapDays: 0, deltaTotal: 0, dailyAvg: 0 });
                         }
+                    }
 
-                        if (row.total_count < prevTotal) {
-                            totalAnomalies++;
-                            resets.push({
-                                unit: p.unit || '-',
-                                location: p.location || '-',
-                                ip: ip,
-                                model: p.model || '-',
-                                date: currentDate,
-                                currentTotal: row.total_count,
-                                prevTotal: prevTotal,
-                                prevDate: prevDate,
-                                gapDays: gapDays,
-                                deltaTotal: deltaTotal,
-                                dailyAvg: deltaTotal > 0 ? Math.round(deltaTotal / gapDays) : 0
-                            });
-                        }
+                    // daily_total consistency
+                    const sumFields = (row.daily_print||0) + (row.daily_copy||0) + (row.daily_scan||0) + (row.daily_fax||0);
+                    if (row.daily_total != null && sumFields > 0 && row.daily_total !== sumFields) {
+                        consistencyMisses.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'dailyTotalMiss', risk: 'miss', riskLabel: '不一致', riskCls: 'badge-miss', detail: 'GS=' + row.daily_total + ' sum=' + sumFields, currentTotal: row.daily_total, prevTotal: sumFields, gapDays: 0, deltaTotal: 0, dailyAvg: 0 });
+                    }
 
-                        // 3. 日均 > 500
-                        if (gapDays > 0 && deltaTotal > 0 && (deltaTotal / gapDays) > 500) {
-                            totalAnomalies++;
-                            largeJumps.push({
-                                unit: p.unit || '-',
-                                location: p.location || '-',
-                                ip: ip,
-                                model: p.model || '-',
-                                date: currentDate,
-                                currentTotal: row.total_count,
-                                prevTotal: prevTotal,
-                                prevDate: prevDate,
-                                gapDays: gapDays,
-                                deltaTotal: deltaTotal,
-                                dailyAvg: Math.round(deltaTotal / gapDays)
-                            });
-                        }
+                    if (gapDays <= 0) { prevValid = row; prevValidDate = currentDate; continue; }
 
-                        // 4. 連續有效記錄間隔 > 1 天（同一 IP 間）
-                        if (gapDays > 1 && !resets.find(r => r.date === currentDate && r.ip === ip)) {
-                            // 已經加到 gaps 裡了，不需重複
+                    const deltaTotal = (row.total_count||0) - (prevValid.total_count||0);
+
+                    // Gap > 1 day
+                    if (gapDays > 1) {
+                        gaps.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'gap', risk: 'warn', riskLabel: '間隔異常', riskCls: 'badge-warn', currentTotal: row.total_count, prevTotal: prevValid.total_count, prevDate: prevDate, gapDays: gapDays, deltaTotal: deltaTotal, dailyAvg: deltaTotal > 0 ? Math.round(deltaTotal/gapDays) : 0 });
+                    }
+
+                    // Counter reset
+                    if (row.total_count < prevValid.total_count) {
+                        resets.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'reset', risk: 'danger', riskLabel: 'counter重置', riskCls: 'badge-danger', detail: String(row.total_count) + ' < ' + prevValid.total_count, currentTotal: row.total_count, prevTotal: prevValid.total_count, prevDate: prevDate, gapDays: gapDays, deltaTotal: deltaTotal, dailyAvg: 0 });
+                    }
+
+                    // Per-field daily avg anomaly
+                    for (let fi = 0; fi < fields.length; fi++) {
+                        const f = fields[fi];
+                        const delta = Math.max(0, (f.val||0) - (f.prev||0));
+                        const avg = Math.round(delta / gapDays);
+                        if (avg > params.threshold) {
+                            perFieldAvg.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'fieldAvg', risk: 'field', riskLabel: '日均' + avg, riskCls: 'badge-field', detail: f.label + ': ' + delta + '/' + gapDays + '=' + avg + ' > ' + params.threshold, currentTotal: delta, prevTotal: 0, gapDays: gapDays, deltaTotal: delta, dailyAvg: avg });
                         }
+                    }
+
+                    // Total daily avg anomaly
+                    if (deltaTotal > 0 && (deltaTotal / gapDays) > params.threshold) {
+                        largeJumps.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'largeJump', risk: 'info', riskLabel: '日均' + Math.round(deltaTotal/gapDays), riskCls: 'badge-info', detail: 'total日均>' + params.threshold, currentTotal: row.total_count, prevTotal: prevValid.total_count, prevDate: prevDate, gapDays: gapDays, deltaTotal: deltaTotal, dailyAvg: Math.round(deltaTotal/gapDays) });
                     }
 
                     prevValid = row;
                     prevValidDate = currentDate;
-                    prevValidTotal = row.total_count;
                 }
             }
 
-            const uniqueGaps = gaps.filter((g, i, arr) => arr.findIndex(x => x.date === g.date && x.ip === g.ip) === i);
-            const uniqueResets = resets.filter((r, i, arr) => arr.findIndex(x => x.date === r.date && x.ip === r.ip) === i);
-            const uniqueJumps = largeJumps.filter((j, i, arr) => arr.findIndex(x => x.date === j.date && x.ip === j.ip) === i);
+            // Unique anomalies
+            const uniqueGaps = gaps.filter(function(g, i, a) { return a.findIndex(function(x) { return x.date===g.date && x.ip===g.ip; })===i; });
+            const uniqueResets = resets.filter(function(r, i, a) { return a.findIndex(function(x) { return x.date===r.date && x.ip===r.ip; })===i; });
+            const uniqueNeg = negDeltas.filter(function(n, i, a) { return a.findIndex(function(x) { return x.date===n.date && x.ip===n.ip && x.anomalyType===n.anomalyType; })===i; });
+            const uniqueConsistency = consistencyMisses.filter(function(c, i, a) { return a.findIndex(function(x) { return x.date===c.date && x.ip===c.ip; })===i; });
+            const uniquePerField = perFieldAvg.filter(function(p, i, a) { return a.findIndex(function(x) { return x.date===p.date && x.ip===p.ip && x.anomalyType===p.anomalyType; })===i; });
 
-            addLog(`檢查完成！發現 ${totalAnomalies} 筆異常`, 'info');
+            // Duplicate detection
+            const { data: dupMetrics } = await supabaseClient.from('printer_metrics').select('printer_id, recorded_at');
+            const dupCounts = {};
+            (dupMetrics || []).forEach(function(m) { const k = m.printer_id + '_' + m.recorded_at.substring(0,10); dupCounts[k]=(dupCounts[k]||0)+1; });
+            const duplicates = Object.entries(dupCounts)
+                .filter(function(e) { return e[1] > 1; })
+                .map(function(e) {
+                    var key = e[0], cnt = e[1];
+                    var parts = key.split('_');
+                    var pidStr = parts[0], date = parts[1];
+                    var p = rawPrinters ? rawPrinters.find(function(x) { return String(x.id)===pidStr; }) : undefined;
+                    return { unit: (p?p.unit:'-'), location: (p?p.location:'-'), ip: 'printer_id=' + pidStr, model: (p?p.model:'-'), date: date, currentTotal: 0, prevTotal: 0, gapDays: 0, deltaTotal: 0, dailyAvg: 0, anomalyType: 'duplicate', risk: 'warn', riskLabel: 'warn', riskCls: 'badge-dup', detail: cnt + ' 筆重複' };
+                });
+            const uniqueDupes = duplicates.filter(function(d, i, a) { return a.findIndex(function(x) { return x.date===d.date && x.ip===d.ip; })===i; });
 
-            renderSummary(uniqueGaps, uniqueResets, uniqueJumps, rawPrinters?.length || 0);
+            renderSummary(rawPrinters ? rawPrinters.length : 0, uniqueGaps, uniqueResets, largeJumps, uniqueNeg, uniqueConsistency, uniquePerField, uniqueDupes);
 
-            // 合併所有異常並按風險排序
-            let allAnomalies = [
-                ...uniqueResets.map(r => ({ ...r, risk: 'danger', riskLabel: 'danger', riskCls: 'badge-danger' })),
-                ...uniqueGaps.filter(g => !uniqueResets.find(r => r.date === g.date && r.ip === g.ip)).map(g => ({ ...g, risk: 'warn', riskLabel: 'warn', riskCls: 'badge-warn' })),
-                ...uniqueJumps.filter(j => !uniqueResets.find(r => r.date === j.date && r.ip === j.ip) && !uniqueGaps.find(g => g.date === j.date && g.ip === j.ip)).map(j => ({ ...j, risk: 'info', riskLabel: 'info', riskCls: 'badge-info' }))
-            ];
-
-            allAnomalies.sort((a, b) => {
-                const riskOrder = { danger: 0, warn: 1, info: 2 };
-                return riskOrder[a.risk] - riskOrder[b.risk];
+            const allAnomalies = uniqueResets.concat(uniqueNeg)
+                .concat(uniqueGaps.filter(function(g) { return !uniqueResets.find(function(r) { return r.date===g.date && r.ip===g.ip; }); }))
+                .concat(uniqueConsistency)
+                .concat(uniquePerField)
+                .concat(uniqueDupes)
+                .concat(uniqueJumps ? uniqueJumps.filter(function(j) { return !uniqueResets.find(function(r) { return r.date===j.date && r.ip===j.ip; }) && !uniqueGaps.find(function(g) { return g.date===j.date && g.ip===j.ip; }); }) : []);
+            allAnomalies.sort(function(a,b) {
+                var ord = { danger:0, miss:1, warn:2, field:3, info:4 };
+                return (ord[a.risk]||5) - (ord[b.risk]||5);
             });
 
             const tbody = document.getElementById('audit-tbody');
@@ -378,36 +556,24 @@
 
             if (allAnomalies.length === 0) {
                 table.classList.add('hidden');
-                document.getElementById('log-content').innerHTML += '\n✅ 所有印表機的每日增量計算合理，無異常！\n';
+                document.getElementById('log-content').innerHTML += '\n\xE2\x9C\x85 所有印表機的每日增量計算合理，無異常！\n';
             } else {
                 table.classList.remove('hidden');
-                tbody.innerHTML = allAnomalies.map(a => `
-                    <tr class="border-t border-white/5">
-                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${a.unit}</td>
-                        <td class="px-4 py-3 text-slate-900 text-xs font-bold">${a.location}</td>
-                        <td class="px-4 py-3 mono">${a.ip}</td>
-                        <td class="px-4 py-3 text-slate-500 text-xs">${a.model}</td>
-                        <td class="px-4 py-3 mono text-right">${a.date}</td>
-                        <td class="px-4 py-3 mono text-right">${a.currentTotal.toLocaleString()}</td>
-                        <td class="px-4 py-3 mono text-right">${a.prevTotal.toLocaleString()}</td>
-                        <td class="px-4 py-3 mono text-right">${a.prevDate}</td>
-                        <td class="px-4 py-3 mono text-right">${a.gapDays}</td>
-                        <td class="px-4 py-3 mono text-right">${a.deltaTotal.toLocaleString()}</td>
-                        <td class="px-4 py-3 mono text-right">${a.dailyAvg.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-center"><span class="badge ${a.riskCls}">${a.riskLabel}</span></td>
-                    </tr>
-                `).join('');
-
-                document.getElementById('log-content').innerHTML +=
-                    `\n⚠️ 共 ${allAnomalies.length} 筆異常：\n` +
-                    `  - ${uniqueResets.length} 筆 counter 重置（total_count 減少）\n` +
-                    `  - ${uniqueGaps.length} 筆記錄間隔 > 1 天\n` +
-                    `  - ${uniqueJumps.length} 筆日均 > 500\n\n`;
+                tbody.innerHTML = allAnomalies.map(function(a) { return buildRow(a); }).join('');
+                document.getElementById('log-content').innerHTML += '\n\xE2\x9A\xA0 共 ' + allAnomalies.length + ' 筆異常：\n' +
+                    '  - ' + (uniqueResets.length + uniqueNeg.length) + ' 筆 counter 重置 / 負增量\n' +
+                    '  - ' + uniqueGaps.length + ' 筆記錄間隔 > 1 天\n' +
+                    '  - ' + uniquePerField.length + ' 筆欄位級日均異常（> ' + params.threshold + '）\n' +
+                    '  - ' + uniqueConsistency.length + ' 筆 daily_total 不一致\n' +
+                    '  - ' + uniqueDupes.length + ' 筆重複記錄\n\n';
             }
+
+            window._auditData = allAnomalies;
+            exportBtn.disabled = false;
 
             addLog('檢查結束。', 'ok');
             btn.disabled = false;
-            btn.textContent = '開始檢查';
+            btn.textContent = '重新檢查';
         }
 
         // == 認證 ==
@@ -437,7 +603,7 @@
                 const btn = document.createElement('button');
                 btn.id = 'signout-btn';
                 btn.className = 'action-btn';
-                btn.textContent = `Sign out (${currentUser.email})`;
+                btn.textContent = 'Sign out (' + currentUser.email + ')';
                 btn.onclick = handleSignOut;
                 const actions = document.querySelector('.dashboard-actions');
                 if (actions) actions.appendChild(btn);
