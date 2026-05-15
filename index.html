@@ -2657,11 +2657,10 @@
             btn.textContent = `Sign out (${user.email})`;
             btn.onclick = handleSignOut;
 
-            // 放在更新資訊旁，避免登入後打亂儀表板網格。
-            const lastUpdateEl = document.getElementById('last-update');
+            // 放在 dashboard-actions 最後
             const actions = document.querySelector('.dashboard-actions');
-            if (actions && lastUpdateEl) {
-                actions.insertBefore(btn, lastUpdateEl);
+            if (actions) {
+                actions.appendChild(btn);
             } else {
                 header.appendChild(btn);
             }
