@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>今日未列印印表機 | No Print Today</title>
+    <title>未收到資料列表 | No Data Received</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
@@ -217,7 +217,7 @@
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center" style="background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);">
         <div class="text-center">
             <h1 class="text-5xl font-extrabold mb-2 text-white">OPERATIONS<span class="text-indigo-500">CENTER</span></h1>
-            <p class="text-slate-400 font-medium mb-8">今日未列印印表機列表</p>
+            <p class="text-slate-400 font-medium mb-8">未收到資料列表</p>
             <button id="google-login-btn"
                 class="flex items-center gap-3 mx-auto bg-white text-slate-900 hover:bg-slate-100 font-bold py-3 px-8 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
                 onclick="handleGoogleLogin()">
@@ -237,8 +237,8 @@
     <div id="dashboard-content" class="shell hidden">
         <header class="hero">
             <div>
-                <h1 class="hero-title">今日未列印印表機</h1>
-                <p class="hero-subtitle">total_count 與 printer_count 皆為 0 的印表機</p>
+                <h1 class="hero-title">未收到資料列表</h1>
+                <p class="hero-subtitle">未收到有效資料的印表機</p>
                 <a href="index.html" style="color:var(--accent-strong);font-size:14px;font-weight:700;text-decoration:underline;margin-top:6px;display:inline-block;">回首頁</a>
                 <a href="daily_audit.html" style="color:#2563eb;font-size:14px;font-weight:700;text-decoration:underline;margin-top:6px;display:inline-block;">每日印量檢查</a>
                 <div class="dashboard-actions">
@@ -271,7 +271,7 @@
                             <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">單位</th>
                             <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">型號</th>
                             <th class="px-4 py-3 font-bold text-left text-xs text-slate-500 uppercase">IP</th>
-                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">最近統計時間</th>
+                            <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">上次抓取時間</th>
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">total_count</th>
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">printer_count</th>
                             <th class="px-4 py-3 font-bold text-right text-xs text-slate-500 uppercase">print_count</th>
@@ -354,7 +354,7 @@
                         // 今日無任何紀錄
                         zeroPrinters.push({
                             ...p,
-                            last_recorded: null,
+                            last_fetched: null,
                             total_count: 0,
                             printer_count: 0,
                             print_count: 0,
@@ -369,7 +369,7 @@
                     if (todayMetric.total_count === 0 && todayMetric.printer_count === 0) {
                         zeroPrinters.push({
                             ...p,
-                            last_recorded: todayMetric.recorded_at,
+                            last_fetched: todayMetric.recorded_at,
                             total_count: todayMetric.total_count || 0,
                             printer_count: todayMetric.printer_count || 0,
                             print_count: todayMetric.print_count || 0,
@@ -380,12 +380,36 @@
                     }
                 });
 
+                // 為每台零印量印表機抓取 printer_metrics 中最接近今天的 recorded_at
+                const latestByPrinter = {};
+                const zeroPrinterIds = zeroPrinters.map(p => p.id);
+                if (zeroPrinterIds.length > 0) {
+                    const uniqueIds = [...new Set(zeroPrinterIds)];
+                    const { data: allLatest } = await supabaseClient
+                        .from('printer_metrics')
+                        .select('printer_id, recorded_at')
+                        .in('printer_id', uniqueIds)
+                        .order('recorded_at', { ascending: false });
+                    // 先依 recorded_at DESC 排序，再取每個 printer_id 的第一筆
+                    (allLatest || []).sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+                    (allLatest || []).forEach(m => {
+                        if (!latestByPrinter[m.printer_id]) {
+                            latestByPrinter[m.printer_id] = m.recorded_at;
+                        }
+                    });
+                }
+                zeroPrinters.forEach(p => {
+                    if (!p.last_fetched && latestByPrinter[p.id]) {
+                        p.last_fetched = latestByPrinter[p.id];
+                    }
+                });
+
                 cachedPrinters = zeroPrinters;
 
                 // 渲染
                 renderSummary(zeroPrinters.length, rawPrinters?.length || 0);
                 renderTable(zeroPrinters);
-                document.getElementById('last-update').innerText = `最後更新：${new Date().toLocaleString('zh-TW', { hour12: false })}`;
+                document.getElementById('last-update').innerText = `上次抓取：${new Date().toLocaleString('zh-TW', { hour12: false })}`;
                 document.getElementById('today-date').textContent = formatDashboardDate(today);
             } catch (e) {
                 console.error('載入失敗:', e);
@@ -398,7 +422,7 @@
             const strip = document.getElementById('summary-strip');
             strip.innerHTML = `
                 <div class="date-field" style="flex:1;background:#fef2f2;border-color:#fecaca;color:#dc2626;">
-                    今日未列印：${zeroCount} 台
+                    未收到資料：${zeroCount} 台
                 </div>
                 <div class="date-field" style="flex:1;background:#f0fdf4;border-color:#bbf7d0;color:#16a34a;">
                     今日有列印：${totalCount - zeroCount} 台
@@ -424,13 +448,13 @@
             empty.classList.add('hidden');
 
             tbody.innerHTML = printers.map(p => {
-                const recordedAt = p.last_recorded ? p.last_recorded.substring(0, 16).replace('T', ' ') : '無';
+                const fetchedAt = p.last_fetched ? p.last_fetched.substring(0, 16).replace('T', ' ') : '無';
                 return `
                     <tr class="border-t border-white/5">
                         <td class="px-4 py-3 text-slate-500 text-xs font-bold">${p.unit || '-'}</td>
                         <td class="px-4 py-3 text-slate-400 text-xs">${p.model || '-'}</td>
                         <td class="px-4 py-3 font-mono text-xs">${p.ip_address || '-'}</td>
-                        <td class="px-4 py-3 font-mono text-xs text-right">${recordedAt}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-right">${fetchedAt}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.total_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.printer_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.print_count}</td>
@@ -446,7 +470,7 @@
             const btn = document.getElementById('dashboard-refresh-btn');
             if (!btn) return;
             btn.disabled = isLoading;
-            btn.textContent = isLoading ? '更新中...' : '重整';
+            btn.textContent = isLoading ? '抓取中...' : '重整';
             btn.classList.toggle('opacity-60', isLoading);
             btn.classList.toggle('cursor-not-allowed', isLoading);
         }
