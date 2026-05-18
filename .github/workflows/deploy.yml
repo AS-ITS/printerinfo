@@ -32,15 +32,6 @@ jobs:
         run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
         timeout-minutes: 5
 
-      # 步驟 C: 執行 Go 程式從 Supabase 抓資料並產生 json
-      - name: Generate data.json
-        run: |
-          go mod tidy
-          go run scripts/main.go
-          ls -R public/  # 檢查 data.json 是否真的在裡面
-        env:
-          SUPABASE_DB_CONNECTION: ${{ secrets.SUPABASE_DB_CONNECTION }}
-
       # 步驟 D: 安裝 Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
