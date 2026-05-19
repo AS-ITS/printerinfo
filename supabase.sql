@@ -155,6 +155,8 @@ SELECT
   copy_count,
   scan_total,
   fax_count,
+  -- daily_print fallback: 若所有 daily 欄位為 0 但 total 有變化，回傳 total_delta
+  -- 避免 printer_metrics 只有 total 更新時 daily_print 為 0
   CASE WHEN daily_print = 0 AND daily_copy = 0 AND daily_scan = 0 AND daily_fax = 0 AND total_delta > 0
     THEN total_delta
     ELSE daily_print
@@ -162,6 +164,7 @@ SELECT
   daily_copy,
   daily_scan,
   daily_fax,
+  -- daily_total: 優先使用 total_delta，fallback 到各 daily 加總
   CASE WHEN total_delta > 0
     THEN total_delta
     ELSE daily_print + daily_copy + daily_scan + daily_fax

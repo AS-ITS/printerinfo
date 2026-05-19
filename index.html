@@ -1607,15 +1607,22 @@
                 let dailyScan = 0;
                 let dailyFax = 0;
                 let dailyTotal = 0;
+                let totalDelta = 0;
 
                 if (hasReading && previousComparable) {
                     dailyPrint = counterDelta(row, previousComparable, 'print_count');
                     dailyCopy = counterDelta(row, previousComparable, 'copy_count');
                     dailyScan = counterDelta(row, previousComparable, 'scan_total');
                     dailyFax = counterDelta(row, previousComparable, 'fax_count');
+                    totalDelta = counterDelta(row, previousComparable, 'total_count');
 
                     // 總數量 = 列印 + 影印 + 傳真（不含掃描）
                     dailyTotal = dailyPrint + dailyCopy + dailyFax;
+
+                    // 若所有 daily 欄位為 0 但 total 有變化（計數器重設），回傳 totalDelta
+                    if (dailyPrint === 0 && dailyCopy === 0 && dailyFax === 0 && totalDelta > 0) {
+                        dailyTotal = totalDelta;
+                    }
                 }
 
                 const corrected = {
