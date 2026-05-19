@@ -218,7 +218,7 @@
 
         .summary-strip {
             display: grid;
-            grid-template-columns: minmax(150px, 1.18fr) minmax(120px, 0.94fr) minmax(120px, 0.94fr) minmax(168px, 1.25fr) minmax(168px, 1.25fr) minmax(92px, 0.62fr);
+            grid-template-columns: minmax(150px, 1.18fr) minmax(120px, 0.94fr) minmax(120px, 0.94fr) minmax(168px, 1.25fr) minmax(92px, 0.62fr);
             gap: 10px;
             min-width: 0;
         }
@@ -1507,7 +1507,7 @@
 
             const summary = computeSummary(scopedPrinters);
 
-            renderSummary(summary, summary.grand_total);
+            renderSummary(summary);
             updateDataRange(scopedPrinters);
             renderTrendChart(scopedPrinters);
             renderYearlyStatsChart(scopedPrinters);
@@ -1569,7 +1569,6 @@
         function computeSummary(printers) {
             const range = getSelectedDateRange();
             let rangePrint = 0, rangeCopy = 0, rangeFax = 0, rangeTotal = 0;
-            let grandTotal = 0;
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
                     const d = (row.recorded_at || '').substring(0, 10);
@@ -1580,15 +1579,13 @@
                         rangeTotal += Math.max(0, row.daily_total || 0);
                     }
                 });
-                grandTotal += (p.total_all_time || 0);
             });
             return {
                 today_print: rangePrint,
                 today_copy: rangeCopy,
                 today_fax: rangeFax,
                 today_total: rangeTotal,
-                total_printers: printers.length,
-                grand_total: grandTotal
+                total_printers: printers.length
             };
         }
 
@@ -1692,7 +1689,7 @@
         }
 
         // == 概況條渲染 ==
-        function renderSummary(s, grandTotal) {
+        function renderSummary(s) {
             const bar = document.getElementById('summary-bar');
             const scopeLabel = currentFilterUnit === 'all' ? '全部單位' : currentFilterUnit;
             const range = getSelectedDateRange();
@@ -1718,11 +1715,6 @@
                     <p class="summary-value" style="color: #fb6a7d;">${(s.today_total || 0).toLocaleString()}</p>
                     <p class="summary-label">總數量</p>
                     <p class="summary-hint">列印+影印+傳真</p>
-                </div>
-                <div class="summary-card" style="flex: 1.25;">
-                    <p class="summary-value">${(grandTotal || 0).toLocaleString()}</p>
-                    <p class="summary-label">期間總印量</p>
-                    <p class="summary-hint">至今累計</p>
                 </div>
                 <div class="summary-card" style="flex: 0.62;">
                     <p class="summary-value">${s.total_printers}</p>
