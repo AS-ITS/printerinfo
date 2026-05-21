@@ -4,3 +4,4 @@ index_01.html
 .env*.local
 envfile
 public
+openspec/changes/*
