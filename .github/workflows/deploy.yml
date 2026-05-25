@@ -1,12 +1,10 @@
-name: Build Data and Deploy to Vercel
+name: Deploy to Vercel
 on:
   push:
     branches: [ main ]
-  schedule:
-    - cron: '0 0 * * *' # 也可以設定每天凌晨自動跑一次，更新資料
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -18,32 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      # 步驟 A: 安裝 psql 客戶端
-      - name: Install psql
-        run: sudo apt-get install -y postgresql-client
-
-      # 步驟 B: 執行資料庫遷移（確保欄位存在）
-      - name: Run migrations
-        run: psql "${{ secrets.SUPABASE_DB_CONNECTION }}" -f supabase.sql
-        timeout-minutes: 5
-
-      # 步驟 D: 安裝 Vercel CLI
+      # 安裝 Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 步驟 E: 部署 (此時 data.json 已經存在於工作目錄中)
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build Project Artifacts
-        # 加入 --prod 參數，這會在 Actions 環境內完成打包
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
-
-      - name: Deploy Project Artifacts to Vercel
-        # 使用 --prebuilt 參數，直接將剛才打包好的成果送上 Vercel，不進行雲端編譯
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      # 部署到 Vercel
+      - name: Deploy to Vercel
+        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
