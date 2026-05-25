@@ -84,7 +84,7 @@
             padding: 24px 22px 8px 34px;
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 860px);
-            gap: 10px;
+            gap: 6px;
             align-items: center;
             color: #ffffff;
             background: var(--panel);
@@ -120,10 +120,10 @@
         .date-panel {
             border: 1px solid rgba(0, 0, 0, 0.12);
             border-radius: 8px;
-            padding: 8px 10px;
+            padding: 10px;
             min-height: 112px;
             background: rgba(0, 0, 0, 0.03);
-            overflow: hidden;
+            overflow-x: auto;
         }
 
         .date-panel-title {
@@ -150,7 +150,11 @@
             font-size: 11px;
             font-weight: 800;
             line-height: 1;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-all;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .date-rule {
@@ -238,6 +242,18 @@
             box-shadow: 0 2px 5px rgba(15, 23, 42, 0.08);
         }
 
+        .summary-card-flex-1-25 {
+            flex: 1.25;
+        }
+
+        .summary-card-flex-1 {
+            flex: 1;
+        }
+
+        .summary-card-flex-0-62 {
+            flex: 0.62;
+        }
+
         .summary-value {
             margin: 0;
             color: #d95f72;
@@ -247,6 +263,10 @@
             letter-spacing: 0;
             overflow-wrap: normal;
             white-space: normal;
+        }
+
+        .summary-value-total {
+            color: #fb6a7d;
         }
 
         .summary-primary .summary-value {
@@ -845,6 +865,8 @@
 
             .date-panel {
                 min-height: 96px;
+                padding: 10px;
+                overflow-x: auto;
             }
 
             .date-rule {
@@ -997,6 +1019,7 @@
 
             .date-panel {
                 min-height: 0;
+                padding: 8px;
             }
 
             .summary-card {
@@ -1338,24 +1361,33 @@
             };
         }
 
+        // 取得日期輸入 DOM 元素
+        function getDateInputs() {
+            return {
+                start: document.getElementById('date-start'),
+                end: document.getElementById('date-end')
+            };
+        }
+
+        // 設定日期輸入值
         function setInputDates(start, end) {
-            const startEl = document.getElementById('date-start');
-            const endEl = document.getElementById('date-end');
+            const { start: startEl, end: endEl } = getDateInputs();
             if (startEl) startEl.value = start || '';
             if (endEl) endEl.value = end || '';
             dateRangeStart = start || '';
             dateRangeEnd = end || '';
         }
 
+        // 取得選取的日期範圍
         function getSelectedDateRange() {
-            const startEl = document.getElementById('date-start');
-            const endEl = document.getElementById('date-end');
+            const { start: startEl, end: endEl } = getDateInputs();
             return {
                 start: startEl?.value || dateRangeStart || getDefaultDateRange().start,
                 end: endEl?.value || dateRangeEnd || getDefaultDateRange().end
             };
         }
 
+        // 應用日期範圍
         function applyDateRange() {
             const range = getSelectedDateRange();
             // 驗證：結束日期 >= 開始日期
@@ -1373,6 +1405,7 @@
             }
         }
 
+        // 重設日期範圍
         function resetDateRange() {
             const def = getDefaultDateRange();
             setInputDates(def.start, def.end);
@@ -1381,24 +1414,29 @@
             }
         }
 
-        // 監聽日期輸入變化
+        // 綁定日期輸入事件監聽器
         function bindDateInputListeners() {
-            const startEl = document.getElementById('date-start');
-            const endEl = document.getElementById('date-end');
-            const resetBtn = document.getElementById('date-reset-btn');
+            const { start: startEl, end: endEl, reset: resetBtn } = {
+                start: document.getElementById('date-start'),
+                end: document.getElementById('date-end'),
+                reset: document.getElementById('date-reset-btn')
+            };
             if (startEl) startEl.addEventListener('input', applyDateRange);
             if (endEl) endEl.addEventListener('input', applyDateRange);
             if (resetBtn) resetBtn.addEventListener('click', resetDateRange);
         }
 
+        // 批次擷取 Supabase 資料（支援分頁）
         async function fetchAllSupabaseRows(queryFactory, pageSize = 1000) {
             const rows = [];
-            for (let from = 0; ; from += pageSize) {
+            let from = 0;
+            for (;;) {
                 const { data, error } = await queryFactory().range(from, from + pageSize - 1);
                 if (error) throw error;
                 const page = data || [];
                 rows.push(...page);
                 if (page.length < pageSize) break;
+                from += pageSize;
             }
             return rows;
         }
@@ -1704,27 +1742,27 @@
             const rangeLabel = range.start && range.end ?
                 `${range.start.replace(/-/g, '/')}` : '';
             bar.innerHTML = `
-                <div class="summary-card" style="flex: 1.25;">
+                <div class="summary-card summary-card-flex-1-25">
                     <p class="summary-value">${(s.today_print || 0).toLocaleString()}</p>
                     <p class="summary-label">列印數量</p>
                     <p class="summary-hint">${rangeLabel ? rangeLabel : '今日'} ${scopeLabel}</p>
                 </div>
-                <div class="summary-card" style="flex: 1;">
+                <div class="summary-card summary-card-flex-1">
                     <p class="summary-value">${(s.today_fax || 0).toLocaleString()}</p>
                     <p class="summary-label">傳真數量</p>
                     <p class="summary-hint">${rangeLabel ? rangeLabel : '今日'} ${scopeLabel}</p>
                 </div>
-                <div class="summary-card" style="flex: 1;">
+                <div class="summary-card summary-card-flex-1">
                     <p class="summary-value">${(s.today_copy || 0).toLocaleString()}</p>
                     <p class="summary-label">影印數量</p>
                     <p class="summary-hint">${rangeLabel ? rangeLabel : '今日'} ${scopeLabel}</p>
                 </div>
-                <div class="summary-card" style="flex: 1.25;">
-                    <p class="summary-value" style="color: #fb6a7d;">${(s.today_total || 0).toLocaleString()}</p>
+                <div class="summary-card summary-card-flex-1-25">
+                    <p class="summary-value summary-value-total">${(s.today_total || 0).toLocaleString()}</p>
                     <p class="summary-label">總數量</p>
                     <p class="summary-hint">列印+影印+傳真</p>
                 </div>
-                <div class="summary-card" style="flex: 0.62;">
+                <div class="summary-card summary-card-flex-0-62">
                     <p class="summary-value">${s.total_printers}</p>
                     <p class="summary-label">印表機總數</p>
                     <p class="summary-hint">目前範圍</p>

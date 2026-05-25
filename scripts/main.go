@@ -128,6 +128,7 @@ func main() {
 	// API 端點
 	mux.HandleFunc("/api/printer", handlerPrinter)
 	mux.HandleFunc("/api/printer/", handlerPrinterByID)
+	mux.HandleFunc("/api/daily-scan-queue", handlerDailyScanRange)
 
 	// 靜態檔案
 	fs := http.FileServer(http.Dir("public"))
@@ -520,4 +521,33 @@ func counterDelta(current, previous int) int {
 		return 0
 	}
 	return current - previous
+}
+
+// handlerDailyScanQueue 處理 /api/daily-scan-queue 端點
+func handlerDailyScanRange(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "Method not allowed"})
+		return
+	}
+
+	if !dataLoaded {
+		if err := loadAllData(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+	}
+
+	// 返回完整的儀表板資料，已經包含所有掃描資訊
+	if dashboardCache == nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "No data available"})
+		return
+	}
+
+	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: dashboardCache})
 }

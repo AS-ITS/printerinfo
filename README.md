@@ -59,6 +59,19 @@ PrinterInfo 是一個印表機營運監控儀表板，前端以靜態 HTML 呈�
 
 頁面內目前已設定 Supabase URL 與 anon key，並使用 Supabase Auth 的 Google OAuth 登入流程。
 
+### `daily-scan-queue.html`
+
+每日掃描佇列頁。頁面使用與 index.html 相同的設計語言，提供：
+
+- 所有印表機的耗材狀態顯示（碳粉、墨水、紙張百分比）
+- 今日印量統計（列印、影印、傳真、總數量）
+- 近 30 天故障紀錄顯示
+- 按單位和耗材狀態篩選功能
+- 匯出功能（JSON/CSV 格式）
+- 響應式設計，支援手機、平板、桌機
+
+此頁透過 `/api/daily-scan-queue` 端點讀取資料，與儀表板資料來源一致。
+
 ### `index_list.html`
 
 年度累計報告頁。此頁同樣透過 Supabase JS 直接讀取 `printers` 與 `printer_metrics`，在瀏覽器端計算每日差值、月統計與年度統計。
