@@ -466,9 +466,26 @@
         let filteredPrinters = [];
         let isLoading = false;
 
+        // Supabase 客戶端
+        const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
+        let supabaseClient;
+
         // 初始化
         async function init() {
             try {
+                // 動態載入 Supabase SDK
+                if (!window.supabase) {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+                        s.onload = resolve;
+                        s.onerror = () => reject(new Error('Supabase SDK 載入失敗'));
+                        document.head.appendChild(s);
+                    });
+                }
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
                 await loadScanQueueData();
                 setupEventListeners();
             } catch (error) {
@@ -484,19 +501,92 @@
             isLoading = true;
 
             try {
-                const response = await fetch('/api/daily-scan-queue');
-                if (!response.ok) throw new Error('API 請求失敗');
+                const today = new Date().toISOString().substring(0, 10);
 
-                const data = await response.json();
+                // 1. 取得所有印表機
+                const { data: rawPrinters, error: printersError } = await supabaseClient
+                    .from('printers')
+                    .select('*')
+                    .order('unit', { ascending: true })
+                    .order('location', { ascending: true });
 
-                if (data.success && data.data) {
-                    allPrinters = data.data.printers || [];
+                if (printersError) throw printersError;
+                if (!rawPrinters || rawPrinters.length === 0) {
+                    allPrinters = [];
                     populateUnitFilter();
                     applyFilters();
                     showLoading(false);
-                } else {
-                    throw new Error('資料格式錯誤');
+                    return;
                 }
+
+                // 2. 取得今日每日統計（daily_stats 視圖已計算好 daily_total/daily_print/daily_copy/daily_fax）
+                const { data: dailyStats, error: statsError } = await supabaseClient
+                    .from('daily_stats')
+                    .select('*')
+                    .eq('recorded_at', today);
+
+                if (statsError) throw statsError;
+
+                // 3. 取得耗材狀態
+                const { data: rawSupplies, error: suppliesError } = await supabaseClient
+                    .from('supplies')
+                    .select('*');
+
+                if (suppliesError) throw suppliesError;
+
+                // 4. 取得所有故障紀錄
+                const { data: rawIncidents, error: incidentsError } = await supabaseClient
+                    .from('incidents')
+                    .select('*');
+
+                if (incidentsError) throw incidentsError;
+
+                // 建構資料
+                const dailyStatsMap = {};
+                (dailyStats || []).forEach(m => {
+                    dailyStatsMap[m.ip_address] = m;
+                });
+
+                const suppliesMap = {};
+                (rawSupplies || []).forEach(s => {
+                    if (!suppliesMap[s.printer_id]) suppliesMap[s.printer_id] = {};
+                    suppliesMap[s.printer_id][s.supply_type] = s.remaining_percent || 100;
+                });
+
+                const incidentsMap = {};
+                (rawIncidents || []).forEach(i => {
+                    if (!incidentsMap[i.printer_id]) incidentsMap[i.printer_id] = [];
+                    incidentsMap[i.printer_id].push({
+                        error_code: i.error_code,
+                        description: i.description,
+                        incident_date: i.incident_date?.substring(0, 10),
+                        downtime_minutes: i.downtime_minutes
+                    });
+                });
+
+                allPrinters = rawPrinters.map(p => {
+                    const stats = dailyStatsMap[p.ip_address] || {};
+                    const supplies = suppliesMap[p.id] || {};
+
+                    return {
+                        ip_address: p.ip_address,
+                        location: p.location,
+                        model: p.model,
+                        unit: p.unit,
+                        daily_total: stats.daily_total || 0,
+                        daily_print: stats.daily_print || 0,
+                        daily_copy: stats.daily_copy || 0,
+                        daily_fax: stats.daily_fax || 0,
+                        toner_percent: supplies.toner ?? 100,
+                        ink_percent: supplies.ink ?? 100,
+                        paper_percent: supplies.paper ?? 100,
+                        incidents: incidentsMap[p.id] || []
+                    };
+                });
+
+                populateUnitFilter();
+                applyFilters();
+                showLoading(false);
             } catch (error) {
                 console.error('載入資料失敗:', error);
                 throw error;
@@ -714,6 +804,7 @@
                 content.classList.add('hidden');
             } else {
                 loading.classList.add('hidden');
+                error.classList.add('hidden');
                 content.classList.remove('hidden');
             }
         }
