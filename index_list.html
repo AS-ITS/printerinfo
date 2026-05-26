@@ -234,15 +234,24 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-white/5">
-                                    ${yearInfo.months.map(m => `
-                                        <tr class="row-hover transition-colors">
-                                            <td class="py-4 text-left pl-4 text-lg font-bold text-slate-300">${parseInt(m.month)}月</td>
-                                            <td class="py-4 pr-4 text-lg font-bold text-blue-400/90">${m.metrics.print.toLocaleString()}</td>
-                                            <td class="py-4 pr-4 text-lg font-bold text-emerald-400/90">${m.metrics.copy.toLocaleString()}</td>
-                                            <td class="py-4 pr-4 text-lg font-bold text-amber-400/90">${m.metrics.fax.toLocaleString()}</td>
-                                            <td class="py-4 pr-4 text-lg font-bold text-white bg-white/5">${m.metrics.total.toLocaleString()}</td>
-                                        </tr>
-                                    `).join('')}
+                                    ${(() => {
+                                        const now = new Date();
+                                        const currentYear = String(now.getFullYear());
+                                        const currentMonth = now.getMonth() + 1;
+                                        const filtered = (yearInfo.months || []).filter(m => {
+                                            if (yearInfo.year !== currentYear) return true;
+                                            return parseInt(m.month) <= currentMonth;
+                                        });
+                                        return filtered.map(m => `
+                                            <tr class="row-hover transition-colors">
+                                                <td class="py-4 text-left pl-4 text-lg font-bold text-slate-300">${parseInt(m.month)}月</td>
+                                                <td class="py-4 pr-4 text-lg font-bold text-blue-400/90">${m.metrics.print.toLocaleString()}</td>
+                                                <td class="py-4 pr-4 text-lg font-bold text-emerald-400/90">${m.metrics.copy.toLocaleString()}</td>
+                                                <td class="py-4 pr-4 text-lg font-bold text-amber-400/90">${m.metrics.fax.toLocaleString()}</td>
+                                                <td class="py-4 pr-4 text-lg font-bold text-white bg-white/5">${m.metrics.total.toLocaleString()}</td>
+                                            </tr>
+                                        `).join('');
+                                    })()}
                                 </tbody>
                             </table>
                         </div>
