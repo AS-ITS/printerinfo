@@ -2348,17 +2348,29 @@
                 '#06b6d4', '#84cc16', '#f97316', '#0f766e'
             ];
 
-            const datasets = years.map((year, idx) => ({
-                label: `${year} 年`,
-                data: Array.from({ length: 12 }, (_, i) => yearMap[year][i + 1] || 0),
-                borderColor: palette[idx % palette.length],
-                backgroundColor: palette[idx % palette.length] + '33',
-                borderWidth: 2,
-                tension: 0.3,
-                pointRadius: 4,
-                pointHoverRadius: 6,
-                fill: false,
-            }));
+            const now = new Date();
+            const currentYear = String(now.getFullYear());
+            const currentMonth = now.getMonth() + 1;
+
+            const datasets = years.map((year, idx) => {
+                const data = Array.from({ length: 12 }, (_, i) => {
+                    const m = i + 1;
+                    const val = yearMap[year]?.[m] || 0;
+                    if (year === currentYear && m > currentMonth) return null;
+                    return val;
+                });
+                return {
+                    label: `${year} 年`,
+                    data,
+                    borderColor: palette[idx % palette.length],
+                    backgroundColor: palette[idx % palette.length] + '33',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    fill: false,
+                };
+            });
 
             destroyMonthlyChart();
 
