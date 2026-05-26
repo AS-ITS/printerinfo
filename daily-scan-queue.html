@@ -504,13 +504,16 @@
                 const today = new Date().toISOString().substring(0, 10);
 
                 // 1. 取得所有印表機
+                console.log('[scan-queue] querying printers...');
                 const { data: rawPrinters, error: printersError } = await supabaseClient
                     .from('printers')
                     .select('*')
                     .order('unit', { ascending: true })
                     .order('location', { ascending: true });
 
-                if (printersError) throw printersError;
+                if (printersError) { console.error('[scan-queue] printers error:', printersError); throw printersError; }
+                console.log('[scan-queue] printers count:', rawPrinters?.length || 0);
+
                 if (!rawPrinters || rawPrinters.length === 0) {
                     allPrinters = [];
                     populateUnitFilter();
@@ -520,26 +523,32 @@
                 }
 
                 // 2. 取得今日每日統計（daily_stats 視圖已計算好 daily_total/daily_print/daily_copy/daily_fax）
+                console.log('[scan-queue] querying daily_stats for', today);
                 const { data: dailyStats, error: statsError } = await supabaseClient
                     .from('daily_stats')
                     .select('*')
                     .eq('recorded_at', today);
 
-                if (statsError) throw statsError;
+                if (statsError) { console.error('[scan-queue] daily_stats error:', statsError); throw statsError; }
+                console.log('[scan-queue] daily_stats count:', dailyStats?.length || 0);
 
                 // 3. 取得耗材狀態
+                console.log('[scan-queue] querying supplies...');
                 const { data: rawSupplies, error: suppliesError } = await supabaseClient
                     .from('supplies')
                     .select('*');
 
-                if (suppliesError) throw suppliesError;
+                if (suppliesError) { console.error('[scan-queue] supplies error:', suppliesError); throw suppliesError; }
+                console.log('[scan-queue] supplies count:', rawSupplies?.length || 0);
 
                 // 4. 取得所有故障紀錄
+                console.log('[scan-queue] querying incidents...');
                 const { data: rawIncidents, error: incidentsError } = await supabaseClient
                     .from('incidents')
                     .select('*');
 
-                if (incidentsError) throw incidentsError;
+                if (incidentsError) { console.error('[scan-queue] incidents error:', incidentsError); throw incidentsError; }
+                console.log('[scan-queue] incidents count:', rawIncidents?.length || 0);
 
                 // 建構資料
                 const dailyStatsMap = {};
