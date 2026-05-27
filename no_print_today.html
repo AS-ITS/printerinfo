@@ -332,10 +332,12 @@
 
                 // 取得今日 metrics
                 const today = getTodayDateString();
+                const todayEnd = today + 'T23:59:59';
                 const { data: rawMetrics } = await supabaseClient
                     .from('daily_stats')
                     .select('*')
-                    .eq('recorded_at::date', today);
+                    .gte('recorded_at', today)
+                    .lte('recorded_at', todayEnd);
 
                 // 建立 IP -> metrics 對照
                 cachedMetrics = {};
