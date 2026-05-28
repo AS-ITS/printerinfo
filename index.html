@@ -1887,14 +1887,26 @@
                     ? '年度總印量統計'
                     : `${currentFilterUnit}｜年度總印量統計`;
             }
-            const range = getSelectedDateRange();
+            // 計算所有資料的日期範圍（顯示歷年數據，而非僅今年）
+            let minDate = '', maxDate = '';
+            printers.forEach(p => {
+                (p.trend || []).forEach(row => {
+                    const d = (row.recorded_at || '').substring(0, 10);
+                    if (d >= minDate) maxDate = d;
+                    if (d <= maxDate || maxDate === '') minDate = d;
+                });
+            });
+            // 確保年份範圍完整
+            const range = {
+                start: minDate || '',
+                end: maxDate || ''
+            };
             const yearMap = {};
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
                     const d = (row.recorded_at || '').substring(0, 10);
-                    if (range.start && range.end) {
-                        if (d < range.start || d > range.end) return;
-                    }
+                    if (range.start && d < range.start) return;
+                    if (range.end && d > range.end) return;
                     const date = new Date(d);
                     if (Number.isNaN(date.getTime())) return;
                     const year = String(date.getFullYear());
