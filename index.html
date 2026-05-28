@@ -1888,12 +1888,13 @@
                     : `${currentFilterUnit}｜年度總印量統計`;
             }
             // 計算所有資料的日期範圍（顯示歷年數據，而非僅今年）
-            let minDate = '', maxDate = '';
+            let minDate = null, maxDate = null;
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
                     const d = (row.recorded_at || '').substring(0, 10);
-                    if (d >= minDate) maxDate = d;
-                    if (d <= maxDate || maxDate === '') minDate = d;
+                    if (d === '') return;
+                    if (maxDate === null || d > maxDate) maxDate = d;
+                    if (minDate === null || d < minDate) minDate = d;
                 });
             });
             // 確保年份範圍完整
