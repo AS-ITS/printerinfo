@@ -2030,9 +2030,8 @@
                 if (!unitMap[unit]) unitMap[unit] = { daily: 0, monthly: 0, yearly: 0 };
 
                 // 今日：使用 printer 層級的 daily_total（已依區間計算）
+                // yearly 資料由 trend 累積（避免 double-count）
                 unitMap[unit].daily += (p.daily_total || 0);
-                unitMap[unit].monthly += (p.daily_total || 0);
-                unitMap[unit].yearly += (p.daily_total || 0);
 
                 // 歷史：從 trend 累積月/年資料
                 (p.trend || []).forEach(row => {
