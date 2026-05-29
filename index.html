@@ -1353,11 +1353,12 @@
         let dateRangeEnd = '';
 
         function getDefaultDateRange() {
-            const now = new Date();
-            const year = now.getFullYear();
+            // 使用 Asia/Taipei 時區與 server 保持一致
+            const taipei = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+            const year = taipei.getFullYear();
             return {
                 start: `${year}-01-01`,
-                end: `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+                end: `${year}-${String(taipei.getMonth() + 1).padStart(2, '0')}-${String(taipei.getDate()).padStart(2, '0')}`
             };
         }
 
@@ -1565,8 +1566,9 @@
         }
 
         function getTodayDateString() {
-            const todayLocal = new Date();
-            return `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+            // 使用 Asia/Taipei 時區與 server 保持一致
+            const taipei = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+            return `${taipei.getFullYear()}-${String(taipei.getMonth() + 1).padStart(2, '0')}-${String(taipei.getDate()).padStart(2, '0')}`;
         }
 
         function formatDashboardDate(dateString) {
