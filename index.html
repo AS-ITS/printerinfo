@@ -1341,6 +1341,17 @@
     </div>
 
     <script>
+        // XSS 防護：escape HTML special characters
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         let cachedPrinters = [];
         let cachedMetrics = {};
         let cachedSupplies = {};
@@ -2487,8 +2498,8 @@
             list.innerHTML = warnings.map(w => `
                 <div class="supply-warning-card bg-amber-500/10 border-amber-500 rounded-r-xl p-3 flex justify-between items-center">
                     <div>
-                        <span class="font-bold text-amber-300">${w.printer} (${w.ip})</span>
-                        <span class="text-amber-400 ml-2">${w.type}剩餘</span>
+                        <span class="font-bold text-amber-300">${escapeHtml(w.printer)} (${escapeHtml(w.ip)})</span>
+                        <span class="text-amber-400 ml-2">${escapeHtml(w.type)}剩餘</span>
                     </div>
                     <span class="text-amber-400 font-mono font-bold">${w.percent}%</span>
                 </div>
@@ -2562,13 +2573,13 @@
                         </td>
                         <td class="px-4 py-3 text-slate-300 text-xs font-bold">${p.unit || '-'}</td>
                         <td class="px-4 py-3">
-                            <div class="font-bold text-white">${p.location || '-'}</div>
-                            <div class="text-[11px] text-slate-500">${p.model || '-'}</div>
-                            <div class="text-[11px] text-slate-500 md:hidden">${p.ip_address}</div>
+                            <div class="font-bold text-white">${escapeHtml(p.location) || '-'}</div>
+                            <div class="text-[11px] text-slate-500">${escapeHtml(p.model) || '-'}</div>
+                            <div class="text-[11px] text-slate-500 md:hidden">${escapeHtml(p.ip_address)}</div>
                         </td>
-                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${p.model}</td>
-                        <td class="px-4 py-3 text-center hidden md:table-cell">${isColorPrinter(p.model) ? '✔' : '✘'}</td>
-                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${p.ip_address}</td>
+                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${escapeHtml(p.model)}</td>
+                        <td class="px-4 py-3 text-center hidden md:table-cell">${isColorPrinter(escapeHtml(p.model)) ? '✔' : '✘'}</td>
+                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${escapeHtml(p.ip_address)}</td>
                         <td class="px-4 py-3 text-right">
                             <div class="text-lg font-black text-white">${(p.daily_total || 0).toLocaleString()}</div>
                             <div class="text-[10px] text-slate-500">列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}</div>
@@ -2721,7 +2732,7 @@
             let html = `
                 <div class="space-y-6">
                     <h4 class="text-indigo-400 font-bold flex items-center">
-                        <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> ${p.location} 耗材狀態
+                        <span class="w-8 h-[2px] bg-indigo-500 mr-2"></span> ${escapeHtml(p.location)} 耗材狀態
                     </h4>
                     <div class="space-y-4">
             `;
