@@ -1591,20 +1591,21 @@
         }
 
         function getUnitsWithTodayPrintData(printers) {
-            const range = getSelectedDateRange();
-            const unitsWithDateRangePrintData = new Map();
+            // 只檢查「今日」的資料，而非整個日期範圍
+            const today = getTodayDateString();
+            const unitsWithTodayPrintData = new Map();
             const printerUnitMap = new Map(printers.map(p => [p.ip_address, p.unit]));
             for (const [ip, metrics] of Object.entries(cachedMetrics)) {
-                const hasInRange = metrics.some(m => {
+                const hasToday = metrics.some(m => {
                     const d = (m.recorded_at || '').substring(0, 10);
-                    return d >= range.start && d <= range.end;
+                    return d === today;
                 });
-                if (hasInRange) {
+                if (hasToday) {
                     const unit = printerUnitMap.get(ip);
-                    if (unit) unitsWithDateRangePrintData.set(unit, true);
+                    if (unit) unitsWithTodayPrintData.set(unit, true);
                 }
             }
-            return unitsWithDateRangePrintData;
+            return unitsWithTodayPrintData;
         }
 
         function computeSummary(printers) {
