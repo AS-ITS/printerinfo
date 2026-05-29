@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -87,7 +88,7 @@ var (
 	supplyMap       = make(map[int][]Supply)
 	incidentMap     = make(map[int][]Incident)
 	dashboardCache  []byte
-	cacheMutex      struct{}
+	cacheMutex      sync.Mutex
 	dataLoaded      bool
 )
 
