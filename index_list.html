@@ -31,10 +31,24 @@
 
 <body class="min-h-screen pb-20">
 
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden min-h-screen flex items-center justify-center">
+        <div class="glass-panel rounded-2xl p-10 text-center max-w-md">
+            <h1 class="text-2xl font-bold mb-4">Printer Analytics</h1>
+            <p class="text-slate-400 mb-6">請登入以存取年度報告</p>
+            <button id="google-login-btn" onclick="handleGoogleLogin()" class="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors border border-white/20">
+                Sign in with Google
+            </button>
+            <p id="login-error" class="text-red-400 mt-4 text-sm hidden"></p>
+        </div>
+    </div>
+
+    <div id="dashboard-content" class="hidden">
     <nav class="glass-panel sticky top-0 z-50 px-10 py-6 mb-12">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-3xl font-black italic tracking-tighter">PRINTER<span class="text-indigo-400">HISTORY</span></h1>
             <div class="flex items-center gap-6">
+                <button id="signout-btn" onclick="handleSignOut()" class="text-slate-400 hover:text-white text-sm font-bold transition-colors" style="display:none;">Sign out</button>
                 <span id="status-badge" class="text-slate-500 text-sm font-bold loading-pulse">載入中...</span>
                 <span class="text-slate-400 font-bold uppercase tracking-widest text-sm">選擇年份:</span>
                 <select id="year-selector" onchange="render()"
@@ -268,7 +282,54 @@
             }
         }
 
-        window.onload = init;
+        // == 認證邏輯 ==
+        const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
+        let supabaseClient = null;
+
+        async function handleGoogleLogin() {
+            const btn = document.getElementById('google-login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '登入中...';
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + window.location.pathname }
+            });
+            if (error) {
+                document.getElementById('login-error').textContent = error.message;
+                document.getElementById('login-error').classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign in with Google';
+            }
+        }
+
+        async function handleSignOut() {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        }
+
+        async function initAuth() {
+            if (!window.supabase) {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+                await new Promise((resolve) => { s.onload = resolve; s.onerror = resolve; document.head.appendChild(s); });
+            }
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
+                const signoutBtn = document.getElementById('signout-btn');
+                if (signoutBtn) signoutBtn.style.display = 'inline-block';
+                init();
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('dashboard-content').classList.add('hidden');
+            }
+        }
+
+        window.onload = initAuth;
     </script>
+    </div>
 </body>
 </html>

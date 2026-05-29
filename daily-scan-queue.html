@@ -403,7 +403,19 @@
 </head>
 
 <body>
-    <div class="dashboard-shell" id="app">
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden min-h-screen flex items-center justify-center">
+        <div class="glass-panel rounded-2xl p-10 text-center max-w-md">
+            <h1 class="text-2xl font-bold mb-4">每日掃描佇列</h1>
+            <p class="text-slate-400 mb-6">請登入以存取資料</p>
+            <button id="google-login-btn" onclick="handleGoogleLogin()" class="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors border border-white/20">
+                Sign in with Google
+            </button>
+            <p id="login-error" class="text-red-400 mt-4 text-sm hidden"></p>
+        </div>
+    </div>
+
+    <div class="dashboard-shell hidden" id="dashboard-content">
         <!-- Loading State -->
         <div id="loading" class="loading">
             <div class="spinner"></div>
@@ -425,6 +437,7 @@
                     <p>今日所有印表機資訊與掃描數字</p>
                 </div>
                 <div class="header-actions">
+                    <button id="signout-btn" onclick="handleSignOut()" class="btn btn-secondary" style="display:none;">Sign out</button>
                     <a href="index.html" class="btn btn-secondary">返回儀表板</a>
                     <button onclick="handleRefresh()" class="btn btn-primary">重新整理</button>
                     <button onclick="exportJSON()" class="btn btn-secondary">匯出 JSON</button>
@@ -829,8 +842,57 @@
             content.classList.add('hidden');
         }
 
+        // == 認證邏輯 ==
+        let supabaseClient = null;
+
+        async function handleGoogleLogin() {
+            const btn = document.getElementById('google-login-btn');
+            btn.disabled = true;
+            btn.innerHTML = '登入中...';
+            const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) {
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = error.message;
+                errEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'Sign in with Google';
+            }
+        }
+
+        async function handleSignOut() {
+            await supabaseClient.auth.signOut();
+            window.location.reload();
+        }
+
+        async function initAuth() {
+            if (!window.supabase) {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+                await new Promise((resolve) => { s.onload = resolve; s.onerror = resolve; document.head.appendChild(s); });
+            }
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
+                const signoutBtn = document.getElementById('signout-btn');
+                if (signoutBtn) signoutBtn.style.display = 'inline-block';
+                // 繼續載入內容
+                init();
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('dashboard-content').classList.add('hidden');
+            }
+        }
+
         // 啟動應用
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', initAuth);
     </script>
 </body>
 </html>
