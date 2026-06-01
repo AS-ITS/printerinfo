@@ -1728,7 +1728,7 @@
             const warrantyDays = p.warranty_end ?
                 Math.ceil((new Date(p.warranty_end) - now) / (24 * 60 * 60 * 1000)) : 999;
 
-            const status = p.status || (supplies.some(s => s.percent < 15) ? 'warning' : 'normal');
+            const status = p.status || (supplies.some(s => s.percent < SUPPLY_WARN_THRESHOLD) ? 'warning' : 'normal');
 
             return {
                 id: p.id,
@@ -2476,7 +2476,7 @@
             const warnings = [];
             printers.forEach(p => {
                 (p.supplies || []).forEach(s => {
-                    if (s.percent < 15) {
+                    if (s.percent < SUPPLY_WARN_THRESHOLD) {
                         const typeNames = { 0: '碳粉', 1: '墨水', 2: '紙張' };
                         warnings.push({
                             printer: p.location,
@@ -2613,8 +2613,8 @@
         }
 
         function getSupplyColor(percent) {
-            if (percent <= 15) return '#ef4444';
-            if (percent <= 50) return '#eab308';
+            if (percent <= SUPPLY_WARN_THRESHOLD) return '#ef4444';
+            if (percent <= SUPPLY_CAUTION_THRESHOLD) return '#eab308';
             return '#22c55e';
         }
 
@@ -2750,8 +2750,8 @@
                         <div class="supply-bar" style="height:12px">
                             <div class="supply-bar-fill" style="width:${s.percent}%;background:${color}"></div>
                         </div>
-                        ${s.percent < 15 ? `<p class="text-red-400 text-sm mt-1">⚠️ 建議立即更換</p>` :
-                        s.percent < 50 ? `<p class="text-amber-400 text-sm mt-1">⚠️ 預估 ${Math.ceil(s.percent / 5)} 天內耗盡</p>` :
+                        ${s.percent < SUPPLY_WARN_THRESHOLD ? `<p class="text-red-400 text-sm mt-1">⚠️ 建議立即更換</p>` :
+                        s.percent < SUPPLY_CAUTION_THRESHOLD ? `<p class="text-amber-400 text-sm mt-1">⚠️ 預估 ${Math.ceil(s.percent / 5)} 天內耗盡</p>` :
                             `<p class="text-green-400 text-sm mt-1">✓ 供應充足</p>`}
                     </div>
                 `;
@@ -2771,6 +2771,10 @@
 
         // == 認證邏輯 ==
         let currentUser = null;
+
+        // == 供料門檻常數（原 15/50 magic number，集中管理） ==
+        const SUPPLY_WARN_THRESHOLD = 15;
+        const SUPPLY_CAUTION_THRESHOLD = 50;
 
         // Supabase 設定（請替換為你的專案資訊）
         // 從環境變數讀取 Supabase 設定，如果沒有則使用預設值

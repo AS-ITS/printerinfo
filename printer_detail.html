@@ -572,7 +572,11 @@
         let cachedPrinterData = null;
         let cachedSupplies = {};
         let cachedIncidents = [];
-        let cachedMetrics = {};
+        let cachedMetrics = [];
+
+        // == 供料門檻常數（原 15/50 magic number，集中管理） ==
+        const SUPPLY_WARN_THRESHOLD = 15;
+        const SUPPLY_CAUTION_THRESHOLD = 50;
 
         // Supabase 設定
         const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
@@ -684,7 +688,7 @@
                 const warrantyDays = printer.warranty_end ?
                     Math.ceil((new Date(printer.warranty_end) - now) / (24 * 60 * 60 * 1000)) : 999;
 
-                const status = (printer.status || (supplies.some(s => s.percent < 15) ? 'warning' : 'normal'));
+                const status = (printer.status || (supplies.some(s => s.percent < SUPPLY_WARN_THRESHOLD) ? 'warning' : 'normal'));
 
                 // 計算所有歷史總量
                 let allTimeTotal = 0;
@@ -890,7 +894,7 @@
             const warnings = [];
             const typeNames = { 0: '碳粉', 1: '墨水', 2: '紙張' };
             (p.supplies || []).forEach(s => {
-                if (s.percent < 15) {
+                if (s.percent < SUPPLY_WARN_THRESHOLD) {
                     warnings.push({ type: typeNames[s.type] || s.type, percent: s.percent });
                 }
             });
@@ -937,8 +941,8 @@
 
         function supplyColor(percent) {
             if (percent === undefined || percent === null) return '#94a3b8';
-            if (percent <= 15) return '#ef4444';
-            if (percent <= 50) return '#eab308';
+            if (percent <= SUPPLY_WARN_THRESHOLD) return '#ef4444';
+            if (percent <= SUPPLY_CAUTION_THRESHOLD) return '#eab308';
             return '#22c55e';
         }
 
