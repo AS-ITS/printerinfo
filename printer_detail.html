@@ -704,7 +704,7 @@
                     daily_print: todayPrint,
                     daily_copy: todayCopy,
                     total_all_time: allTimeTotal,
-                    warranty_days: Math.max(0, warrantyDays),
+                    warranty_days: warrantyDays,
                     printer_status: status
                 };
 
@@ -868,7 +868,7 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">保固剩餘</div>
-                    <div class="info-value">${p.warranty_days >= 999 ? '無保固資訊' : p.warranty_days + ' 天'}</div>
+                    <div class="info-value">${p.warranty_days >= 999 ? '無保固資訊' : p.warranty_days < 0 ? `已過期 ${Math.abs(p.warranty_days)} 天` : p.warranty_days + ' 天'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">碳粉</div>

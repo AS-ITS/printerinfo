@@ -1726,7 +1726,7 @@
 
             const now = new Date();
             const warrantyDays = p.warranty_end ?
-                Math.ceil((new Date(p.warranty_end) - now) / (24 * 60 * 60 * 1000)) : 999;
+                Math.ceil((new Date(p.warranty_end) - now) / (24 * 60 * 60 * 1000)) : -1;
 
             const status = p.status || (supplies.some(s => s.percent < SUPPLY_WARN_THRESHOLD) ? 'warning' : 'normal');
 
@@ -1741,7 +1741,7 @@
                 daily_print: dailyPrint,
                 daily_copy: dailyCopy,
                 total_all_time: rawMetrics.length > 0 ? (rawMetrics[rawMetrics.length - 1].total_count || 0) : 0,
-                warranty_days: Math.max(0, warrantyDays),
+                warranty_days: warrantyDays,
                 supplies,
                 incidents,
                 trend
