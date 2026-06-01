@@ -791,6 +791,17 @@
             `;
         }
 
+        // XSS 防護：escape HTML special characters
+        function escapeHtml(s) {
+            if (s == null || s === '') return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // == 趨勢圖 ==
         let trendChartInstance = null;
 
@@ -852,19 +863,19 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">型號</div>
-                    <div class="info-value">${p.model || '-'}</div>
+                    <div class="info-value">${escapeHtml(p.model) || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">IP 位址</div>
-                    <div class="info-value mono">${p.ip_address || '-'}</div>
+                    <div class="info-value mono">${escapeHtml(p.ip_address) || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">位置</div>
-                    <div class="info-value">${p.location || '-'}</div>
+                    <div class="info-value">${escapeHtml(p.location) || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">單位</div>
-                    <div class="info-value">${p.unit || '-'}</div>
+                    <div class="info-value">${escapeHtml(p.unit) || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">保固剩餘</div>
@@ -928,8 +939,8 @@
             list.innerHTML = incidents.map(inc => `
                 <div class="bg-white/5 rounded-xl p-3 flex justify-between items-center">
                     <div>
-                        <span class="text-red-400 font-mono text-sm">${inc.error_code || 'Unknown'}</span>
-                        <span class="text-slate-400 ml-2 text-sm">${inc.description || ''}</span>
+                        <span class="text-red-400 font-mono text-sm">${escapeHtml(inc.error_code) || 'Unknown'}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${escapeHtml(inc.description) || ''}</span>
                     </div>
                     <div class="text-right text-slate-500 text-sm">
                         <div>${inc.incident_date?.substring(0, 10) || ''}</div>
