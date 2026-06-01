@@ -83,13 +83,13 @@ type APIResponse struct {
 }
 
 var (
-	db              *sql.DB
-	trendMap        = make(map[string][]DailyRow)
-	supplyMap       = make(map[int][]Supply)
-	incidentMap     = make(map[int][]Incident)
-	dashboardCache  []byte
-	cacheMutex      sync.Mutex
-	dataLoaded      bool
+	db             *sql.DB
+	trendMap       = make(map[string][]DailyRow)
+	supplyMap      = make(map[int][]Supply)
+	incidentMap    = make(map[int][]Incident)
+	dashboardCache []byte
+	cacheMutex     sync.Mutex
+	dataLoaded     bool
 )
 
 func main() {
@@ -151,7 +151,10 @@ func loadAllData() error {
 		return fmt.Errorf("未設定 SUPABASE_DB_CONNECTION")
 	}
 
-	// 重新連線
+	// 重新連線：先關閉舊連線避免洩漏
+	if db != nil {
+		_ = db.Close()
+	}
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
