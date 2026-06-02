@@ -274,11 +274,11 @@ func loadAllData() error {
 		if err != nil {
 			return fmt.Errorf("儀表板讀取失敗: %w", err)
 		}
-		// 若資料庫中 warranty_days 為 NULL，則轉換為 0
+		// 若資料庫中 warranty_days 為 NULL（無保固資訊），回傳 -1 以區別於 0（今天到期）
 		if warrantyDays.Valid {
 			dp.WarrantyDays = int(warrantyDays.Int64)
 		} else {
-			dp.WarrantyDays = 0
+			dp.WarrantyDays = -1
 		}
 
 		dp.Supplies = supplyMap[dp.ID]
