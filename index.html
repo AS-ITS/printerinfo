@@ -2063,7 +2063,7 @@
                     const val = row.daily_total || row.total || 0;
                     const rowDate = new Date(d);
                     if (rowDate.getFullYear() === currentYear) unitMap[unit].yearly += val;
-                    if (rowDate.getMonth() === currentMonth) unitMap[unit].monthly += val;
+                    unitMap[unit].monthly += val;
                 });
             });
 
