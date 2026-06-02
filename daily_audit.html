@@ -500,8 +500,11 @@
                     }
 
                     // Counter reset
-                    if (row.total_count < prevValid.total_count) {
-                        resets.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'reset', risk: 'danger', riskLabel: 'counter重置', riskCls: 'badge-danger', detail: String(row.total_count) + ' < ' + prevValid.total_count, currentTotal: row.total_count, prevTotal: prevValid.total_count, prevDate: prevDate, gapDays: gapDays, deltaTotal: deltaTotal, dailyAvg: 0 });
+                    if (row.total_count <= prevValid.total_count) {
+                        const resetDetail = row.total_count === prevValid.total_count
+                            ? String(row.total_count) + ' == ' + prevValid.total_count
+                            : String(row.total_count) + ' < ' + prevValid.total_count;
+                        resets.push({ unit: p.unit||'-', location: p.location||'-', ip: ip, model: p.model||'-', date: currentDate, anomalyType: 'reset', risk: 'danger', riskLabel: 'counter重置', riskCls: 'badge-danger', detail: resetDetail, currentTotal: row.total_count, prevTotal: prevValid.total_count, prevDate: prevDate, gapDays: gapDays, deltaTotal: deltaTotal, dailyAvg: 0 });
                     }
 
                     // Per-field daily avg anomaly
