@@ -527,14 +527,24 @@
                 }
             }
 
-            // Unique anomalies
-            const uniqueGaps = gaps.filter(function(g, i, a) { return a.findIndex(function(x) { return x.date===g.date && x.ip===g.ip; })===i; });
-            const uniqueResets = resets.filter(function(r, i, a) { return a.findIndex(function(x) { return x.date===r.date && x.ip===r.ip; })===i; });
-            const uniqueNeg = negDeltas.filter(function(n, i, a) { return a.findIndex(function(x) { return x.date===n.date && x.ip===n.ip && x.anomalyType===n.anomalyType; })===i; });
-            const uniqueConsistency = consistencyMisses.filter(function(c, i, a) { return a.findIndex(function(x) { return x.date===c.date && x.ip===c.ip; })===i; });
-            const uniquePerField = perFieldAvg.filter(function(p, i, a) { return a.findIndex(function(x) { return x.date===p.date && x.ip===p.ip && x.anomalyType===p.anomalyType; })===i; });
+            // Unique anomalies — O(N) dedup using Map
+            function dedupBy(arr, keyFields) {
+                const seen = new Map();
+                return arr.filter(function(item) {
+                    const key = keyFields.map(function(f) { return item[f] || ''; }).join('|');
+                    if (seen.has(key)) return false;
+                    seen.set(key, true);
+                    return true;
+                });
+            }
+            const uniqueGaps = dedupBy(gaps, ['date', 'ip']);
+            const uniqueResets = dedupBy(resets, ['date', 'ip']);
+            const uniqueNeg = dedupBy(negDeltas, ['date', 'ip', 'anomalyType']);
+            const uniqueConsistency = dedupBy(consistencyMisses, ['date', 'ip']);
+            const uniquePerField = dedupBy(perFieldAvg, ['date', 'ip', 'anomalyType']);
 
-            // Duplicate detection
+            // Duplicate detection — O(N) with pre-built Map
+            const printerById = new Map((rawPrinters || []).map(function(p) { return [String(p.id), p]; }));
             const { data: dupMetrics } = await supabaseClient.from('printer_metrics').select('printer_id, recorded_at');
             const dupCounts = {};
             (dupMetrics || []).forEach(function(m) { const k = m.printer_id + '_' + m.recorded_at.substring(0,10); dupCounts[k]=(dupCounts[k]||0)+1; });
@@ -544,19 +554,22 @@
                     var key = e[0], cnt = e[1];
                     var parts = key.split('_');
                     var pidStr = parts[0], date = parts[1];
-                    var p = rawPrinters ? rawPrinters.find(function(x) { return String(x.id)===pidStr; }) : undefined;
+                    var p = printerById.get(pidStr);
                     return { unit: (p?p.unit:'-'), location: (p?p.location:'-'), ip: 'printer_id=' + pidStr, model: (p?p.model:'-'), date: date, currentTotal: 0, prevTotal: 0, gapDays: 0, deltaTotal: 0, dailyAvg: 0, anomalyType: 'duplicate', risk: 'warn', riskLabel: 'warn', riskCls: 'badge-dup', detail: cnt + ' 筆重複' };
                 });
-            const uniqueDupes = duplicates.filter(function(d, i, a) { return a.findIndex(function(x) { return x.date===d.date && x.ip===d.ip; })===i; });
+            const uniqueDupes = dedupBy(duplicates, ['date', 'ip']);
 
             renderSummary(rawPrinters ? rawPrinters.length : 0, uniqueGaps, uniqueResets, largeJumps, uniqueNeg, uniqueConsistency, uniquePerField, uniqueDupes);
 
+            // Build sets for O(1) lookups
+            const resetSet = new Set(uniqueResets.map(function(r) { return r.date + '|' + r.ip; }));
+            const gapSet = new Set(uniqueGaps.map(function(g) { return g.date + '|' + g.ip; }));
             const allAnomalies = uniqueResets.concat(uniqueNeg)
-                .concat(uniqueGaps.filter(function(g) { return !uniqueResets.find(function(r) { return r.date===g.date && r.ip===g.ip; }); }))
+                .concat(uniqueGaps.filter(function(g) { return !resetSet.has(g.date + '|' + g.ip); }))
                 .concat(uniqueConsistency)
                 .concat(uniquePerField)
                 .concat(uniqueDupes)
-                .concat(largeJumps ? largeJumps.filter(function(j) { return !uniqueResets.find(function(r) { return r.date===j.date && r.ip===j.ip; }) && !uniqueGaps.find(function(g) { return g.date===j.date && g.ip===j.ip; }); }) : []);
+                .concat(largeJumps ? largeJumps.filter(function(j) { return !resetSet.has(j.date + '|' + j.ip) && !gapSet.has(j.date + '|' + j.ip); }) : []);
             allAnomalies.sort(function(a,b) {
                 var ord = { danger:0, miss:1, warn:2, field:3, info:4 };
                 return (ord[a.risk]||5) - (ord[b.risk]||5);
