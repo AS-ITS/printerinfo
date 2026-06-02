@@ -80,6 +80,14 @@
 
         let fullData = [];
 
+        // == HTML 轉義 ==
+        function escapeHtml(str) {
+            if (typeof str !== 'string' || str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         // =============================================
         // 計算每日增量（今天累積值 - 前一天累積值）
         // 若差值為負（計數器重置），視為 0
@@ -215,7 +223,7 @@
                 const unitHeader = document.createElement('div');
                 unitHeader.className = 'flex items-center gap-4 mt-4 mb-6';
                 unitHeader.innerHTML = `
-                    <span class="text-emerald-400 font-black text-2xl uppercase tracking-widest">${unit}</span>
+                    <span class="text-emerald-400 font-black text-2xl uppercase tracking-widest">${escapeHtml(unit)}</span>
                     <span class="flex-1 h-px bg-white/10"></span>
                     <span class="text-slate-500 text-sm font-bold">${unitGroups[unit].length} 台印表機</span>
                 `;
@@ -228,8 +236,8 @@
                     section.innerHTML = `
                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
                             <div>
-                                <h3 class="text-3xl font-black text-white mb-1">${printer.location}</h3>
-                                <p class="text-slate-400 font-mono text-base">${printer.ip} &nbsp;·&nbsp; ${printer.model || '-'}</p>
+                                <h3 class="text-3xl font-black text-white mb-1">${escapeHtml(printer.location)}</h3>
+                                <p class="text-slate-400 font-mono text-base">${escapeHtml(printer.ip)} &nbsp;·&nbsp; ${escapeHtml(printer.model) || '-'}</p>
                             </div>
                             <div class="bg-white/5 px-8 py-4 rounded-2xl border border-white/10 text-right shrink-0">
                                 <p class="text-xs font-black text-slate-500 uppercase tracking-widest mb-1">年度累計總量</p>

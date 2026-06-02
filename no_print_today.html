@@ -307,6 +307,14 @@
         let cachedPrinters = [];
         let cachedMetrics = {};
 
+        // == HTML 轉義 ==
+        function escapeHtml(str) {
+            if (typeof str !== 'string' || str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         function getTodayDateString() {
             const todayLocal = new Date();
             return `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
@@ -453,9 +461,9 @@
                 const fetchedAt = p.last_fetched ? p.last_fetched.substring(0, 16).replace('T', ' ') : '無';
                 return `
                     <tr class="border-t border-white/5">
-                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${p.unit || '-'}</td>
-                        <td class="px-4 py-3 text-slate-400 text-xs">${p.model || '-'}</td>
-                        <td class="px-4 py-3 font-mono text-xs">${p.ip_address || '-'}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${escapeHtml(p.unit) || '-'}</td>
+                        <td class="px-4 py-3 text-slate-400 text-xs">${escapeHtml(p.model) || '-'}</td>
+                        <td class="px-4 py-3 font-mono text-xs">${escapeHtml(p.ip_address) || '-'}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${fetchedAt}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.total_count}</td>
                         <td class="px-4 py-3 font-mono text-xs text-right">${p.printer_count}</td>

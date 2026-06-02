@@ -484,6 +484,14 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
         let supabaseClient;
 
+        // == HTML 轉義 ==
+        function escapeHtml(str) {
+            if (typeof str !== 'string' || str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         // 初始化
         async function init() {
             try {
@@ -693,9 +701,9 @@
                 return `
                     <div class="printer-card">
                         <div class="printer-info">
-                            <div class="printer-name">${printer.location} ${printer.model || ''}</div>
-                            <div class="printer-location">IP: ${printer.ip_address}</div>
-                            <div class="printer-unit">${printer.unit || '未知單位'}</div>
+                            <div class="printer-name">${escapeHtml(printer.location)} ${escapeHtml(printer.model || '')}</div>
+                            <div class="printer-location">IP: ${escapeHtml(printer.ip_address)}</div>
+                            <div class="printer-unit">${escapeHtml(printer.unit) || '未知單位'}</div>
                         </div>
                         <div class="printer-stats">
                             <div class="stat-item">

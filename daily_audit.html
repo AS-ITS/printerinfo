@@ -245,6 +245,14 @@
             };
         }
 
+        // == HTML 轉義 ==
+        function escapeHtml(str) {
+            if (typeof str !== 'string' || str === null || str === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         function buildRow(a) {
             const cls = a.riskCls || 'badge-info';
             const label = a.riskLabel || a.risk;
@@ -255,17 +263,17 @@
                 groundTruth: 'GT差異', duplicate: '重複記錄'
             };
             const typeHtml = a.anomalyType
-                ? `<td class="px-4 py-3 text-center"><span class="badge ${cls}">${typeLabels[a.anomalyType] || a.anomalyType}</span></td>`
+                ? `<td class="px-4 py-3 text-center"><span class="badge ${cls}">${typeLabels[a.anomalyType] || escapeHtml(a.anomalyType)}</span></td>`
                 : '';
             const detailCol = a.detail
-                ? `<td class="px-4 py-3 mono text-right" style="max-width:200px;word-break:break-all;">${a.detail}</td>`
+                ? `<td class="px-4 py-3 mono text-right" style="max-width:200px;word-break:break-all;">${escapeHtml(a.detail)}</td>`
                 : '';
             return `
                     <tr class="border-t border-white/5">
-                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${a.unit}</td>
-                        <td class="px-4 py-3 text-slate-900 text-xs font-bold">${a.location}</td>
-                        <td class="px-4 py-3 mono">${a.ip}</td>
-                        <td class="px-4 py-3 text-slate-500 text-xs">${a.model || '-'}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs font-bold">${escapeHtml(a.unit)}</td>
+                        <td class="px-4 py-3 text-slate-900 text-xs font-bold">${escapeHtml(a.location)}</td>
+                        <td class="px-4 py-3 mono">${escapeHtml(a.ip)}</td>
+                        <td class="px-4 py-3 text-slate-500 text-xs">${escapeHtml(a.model) || '-'}</td>
                         <td class="px-4 py-3 mono text-right">${a.date}</td>
                         <td class="px-4 py-3 mono text-right">${a.currentTotal != null ? a.currentTotal.toLocaleString() : ''}</td>
                         <td class="px-4 py-3 mono text-right">${a.prevTotal != null ? a.prevTotal.toLocaleString() : ''}</td>

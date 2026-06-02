@@ -2527,10 +2527,10 @@
                 return `
                 <div class="bg-white/5 rounded-xl p-3 flex justify-between items-center">
                     <div>
-                        <span class="font-bold text-white">${info.printer}</span>
-                        <span class="text-slate-400 ml-2 text-sm">${info.ip}</span>
-                        <span class="text-red-400 ml-2 font-mono text-sm">${inc.error_code || 'Unknown'}</span>
-                        <span class="text-slate-400 ml-2 text-sm">${inc.description || ''}</span>
+                        <span class="font-bold text-white">${escapeHtml(info.printer)}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${escapeHtml(info.ip)}</span>
+                        <span class="text-red-400 ml-2 font-mono text-sm">${escapeHtml(inc.error_code) || 'Unknown'}</span>
+                        <span class="text-slate-400 ml-2 text-sm">${escapeHtml(inc.description) || ''}</span>
                     </div>
                     <div class="text-right text-slate-500 text-sm">
                         <div>${inc.incident_date?.substring(0, 10) || ''}</div>
@@ -2571,7 +2571,7 @@
                                 <span class="status-text">${statusLabel}</span>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-slate-300 text-xs font-bold">${p.unit || '-'}</td>
+                        <td class="px-4 py-3 text-slate-300 text-xs font-bold">${escapeHtml(p.unit) || '-'}</td>
                         <td class="px-4 py-3">
                             <div class="font-bold text-white">${escapeHtml(p.location) || '-'}</div>
                             <div class="text-[11px] text-slate-500">${escapeHtml(p.model) || '-'}</div>
