@@ -255,6 +255,13 @@
             </div>
         </header>
 
+        <div id="error-bar" class="hidden p-4 mb-4 rounded-xl" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;">
+            <div class="flex items-center justify-between">
+                <span id="error-message"></span>
+                <button id="retry-btn" type="button" class="px-4 py-1 rounded-lg" style="background:#dc2626;color:white;border:none;font-weight:700;cursor:pointer;">重試</button>
+            </div>
+        </div>
+
         <div id="printer-table-container">
             <h3>
                 <svg class="w-5 h-5 inline mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -329,6 +336,7 @@
 
         // == 載入資料 ==
         async function loadData() {
+            document.getElementById('error-bar').classList.add('hidden');
             setRefreshLoading(true);
             try {
                 // 取得所有印表機
@@ -423,6 +431,8 @@
                 document.getElementById('today-date').textContent = formatDashboardDate(today);
             } catch (e) {
                 console.error('載入失敗:', e);
+                document.getElementById('error-message').textContent = '載入失敗：' + (e.message || String(e));
+                document.getElementById('error-bar').classList.remove('hidden');
             } finally {
                 setRefreshLoading(false);
             }
@@ -656,6 +666,11 @@
                 }
             });
         }
+
+        document.getElementById('retry-btn').addEventListener('click', function() {
+            document.getElementById('error-bar').classList.add('hidden');
+            loadData();
+        });
 
         init();
     </script>
