@@ -1540,7 +1540,9 @@
         function getScopedPrinters() {
             return currentFilterUnit === 'all'
                 ? cachedPrinters
-                : cachedPrinters.filter(p => p.unit === currentFilterUnit);
+                : currentFilterUnit === '未分類'
+                    ? cachedPrinters.filter(p => !p.unit)
+                    : cachedPrinters.filter(p => p.unit === currentFilterUnit);
         }
 
         function getScopedIncidents(printers) {
@@ -1613,7 +1615,11 @@
                 });
                 if (hasToday) {
                     const unit = printerUnitMap.get(ip);
-                    if (unit) unitsWithTodayPrintData.set(unit, true);
+                    if (unit) {
+                        unitsWithTodayPrintData.set(unit, true);
+                    } else if (!unitsWithTodayPrintData.has('未分類')) {
+                        unitsWithTodayPrintData.set('未分類', true);
+                    }
                 }
             }
             return unitsWithTodayPrintData;
@@ -2439,14 +2445,19 @@
 
         function renderUnitFilter(printers, unitsWithTodayPrintData) {
             const units = [...new Set(printers.map(p => p.unit).filter(Boolean))].sort();
-            if (units.length === 0) return;
+            const hasUnassigned = printers.some(p => !p.unit);
+            if (units.length === 0 && !hasUnassigned) return;
 
             const section = document.getElementById('unit-filter-section');
             const buttons = document.getElementById('unit-filter-buttons');
             section.classList.remove('hidden');
 
             buttons.innerHTML = '';
-            [{ value: 'all', label: '全部顯示' }, ...units.map(u => ({ value: u, label: u }))].forEach(item => {
+            const items = [{ value: 'all', label: '全部顯示' }, ...units.map(u => ({ value: u, label: u }))];
+            if (hasUnassigned) {
+                items.push({ value: '未分類', label: '未分類' });
+            }
+            items.forEach(item => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.dataset.unit = item.value;
