@@ -1945,33 +1945,22 @@
                     ? '年度總印量統計'
                     : `${currentFilterUnit}｜年度總印量統計`;
             }
-            // 計算所有資料的日期範圍（顯示歷年數據，而非僅今年）
+            // 單一遍歷同時計算 minDate、maxDate 和 yearMap
             let minDate = null, maxDate = null;
-            printers.forEach(p => {
-                (p.trend || []).forEach(row => {
-                    const d = (row.recorded_at || '').substring(0, 10);
-                    if (d === '') return;
-                    if (maxDate === null || d > maxDate) maxDate = d;
-                    if (minDate === null || d < minDate) minDate = d;
-                });
-            });
-            // 確保年份範圍完整
-            const range = {
-                start: minDate || '',
-                end: maxDate || ''
-            };
             const yearMap = {};
             printers.forEach(p => {
                 (p.trend || []).forEach(row => {
                     const d = (row.recorded_at || '').substring(0, 10);
-                    if (range.start && d < range.start) return;
-                    if (range.end && d > range.end) return;
+                    if (d === '') return;
+                    if (minDate === null || d < minDate) minDate = d;
+                    if (maxDate === null || d > maxDate) maxDate = d;
                     const date = new Date(d);
                     if (Number.isNaN(date.getTime())) return;
                     const year = String(date.getFullYear());
                     yearMap[year] = (yearMap[year] || 0) + Math.max(0, row.daily_total || row.total || 0);
                 });
             });
+            const range = { start: minDate || '', end: maxDate || '' };
 
             const years = Object.keys(yearMap).sort();
             destroyYearlyChart();
