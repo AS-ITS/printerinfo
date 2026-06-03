@@ -1286,6 +1286,10 @@
                         <tbody id="printer-table-body">
                         </tbody>
                     </table>
+                    <div id="pagination-bar" class="flex items-center justify-between p-3 border-t border-white/10">
+                        <span id="pagination-info" class="text-xs text-slate-400"></span>
+                        <div id="pagination-buttons" class="flex gap-1"></div>
+                    </div>
                 </div>
 
                 <!-- 近期故障記錄 -->
@@ -1362,6 +1366,8 @@
         let dashboardLoading = false;
         let dateRangeStart = '';
         let dateRangeEnd = '';
+        let currentPage = 1;
+        const PAGE_SIZE = 20;
 
         function getDefaultDateRange() {
             // 使用 Asia/Taipei 時區與 server 保持一致
@@ -2561,11 +2567,20 @@
             if (!printers || printers.length === 0) {
                 grid.classList.add('hidden');
                 tbody.innerHTML = '';
+                document.getElementById('pagination-bar')?.classList.add('hidden');
                 return;
             }
 
             grid.classList.remove('hidden');
-            tbody.innerHTML = printers.map((p, idx) => {
+
+            // 計算分頁
+            const totalPages = Math.ceil(printers.length / PAGE_SIZE);
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+            const pagePrinters = printers.slice(start, end);
+
+            tbody.innerHTML = pagePrinters.map(p => {
                 const statusClass = p.printer_status === 'warning' ? 'status-warning' :
                     p.printer_status === 'error' ? 'status-error' : 'status-normal';
                 const statusLabel = p.printer_status === 'warning' ? '注意' :
@@ -2607,6 +2622,57 @@
                     </tr>
                 `;
             }).join('');
+
+            // 渲染分頁控制
+            renderPagination(printers.length, totalPages);
+        }
+
+        function renderPagination(totalItems, totalPages) {
+            const bar = document.getElementById('pagination-bar');
+            const info = document.getElementById('pagination-info');
+            const buttons = document.getElementById('pagination-buttons');
+            if (!bar || !info || !buttons) return;
+
+            bar.classList.remove('hidden');
+            const start = (currentPage - 1) * PAGE_SIZE + 1;
+            const end = Math.min(currentPage * PAGE_SIZE, totalItems);
+            info.textContent = `顯示 ${start}-${end} 筆，共 ${totalItems} 筆`;
+
+            buttons.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            // 上一頁
+            const prevBtn = document.createElement('button');
+            prevBtn.type = 'button';
+            prevBtn.textContent = '«';
+            prevBtn.className = 'px-2 py-1 text-xs rounded bg-white/5 text-slate-400 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPrinters(cachedPrinters); }});
+            buttons.appendChild(prevBtn);
+
+            // 頁碼按鈕（最多顯示 5 頁）
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage + 1 < maxVisible) startPage = Math.max(1, endPage - maxVisible + 1);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = i;
+                btn.className = `px-2 py-1 text-xs rounded ${i === currentPage ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`;
+                btn.addEventListener('click', () => { currentPage = i; renderPrinters(cachedPrinters); });
+                buttons.appendChild(btn);
+            }
+
+            // 下一頁
+            const nextBtn = document.createElement('button');
+            nextBtn.type = 'button';
+            nextBtn.textContent = '»';
+            nextBtn.className = 'px-2 py-1 text-xs rounded bg-white/5 text-slate-400 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; renderPrinters(cachedPrinters); }});
+            buttons.appendChild(nextBtn);
         }
 
         // == 彩色列印判斷 ==
