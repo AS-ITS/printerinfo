@@ -1368,6 +1368,7 @@
         let cachedMetrics = {};
         let cachedSupplies = {};
         let cachedIncidents = [];
+        let globalTrendMap = {};
         let currentFilterUnit = 'all';
         let dashboardDataLoaded = false;
         let dashboardLoadedUserKey = null;
@@ -1526,6 +1527,16 @@
 
                 // 儲存完整資料，單位切換時從快取重繪，不重新查詢 Supabase
                 cachedPrinters = printers;
+
+                // 預建全局 trend 聚合快取，避免 renderTrendChart 每次遍歷所有印表機
+                globalTrendMap = {};
+                printers.forEach(p => {
+                    (p.trend || []).forEach(row => {
+                        const d = row.recorded_at.substring(0, 10);
+                        globalTrendMap[d] = (globalTrendMap[d] || 0) + (row.daily_total || 0);
+                    });
+                });
+
                 if (!force) currentFilterUnit = 'all';
                 dashboardDataLoaded = true;
                 dashboardLoadedUserKey = userKey;
@@ -1814,16 +1825,13 @@
 
         function renderTrendChart(printers) {
             const range = getSelectedDateRange();
-            const dateMap = {};
-            printers.forEach(p => {
-                (p.trend || []).forEach(row => {
-                    const d = row.recorded_at.substring(0, 10);
-                    if (range.start && range.end) {
-                        if (d < range.start || d > range.end) return;
-                    }
-                    dateMap[d] = (dateMap[d] || 0) + (row.daily_total || 0);
+            // 使用預建的全局 trend 快取，避免每次遍歷所有印表機
+            let dateMap = { ...globalTrendMap };
+            if (range.start && range.end) {
+                Object.keys(dateMap).forEach(d => {
+                    if (d < range.start || d > range.end) delete dateMap[d];
                 });
-            });
+            }
 
             const sortedDates = Object.keys(dateMap).sort();
             const ctx = document.getElementById('trend-chart').getContext('2d');
