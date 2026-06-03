@@ -1128,6 +1128,13 @@
 
     <!-- 儀表板內容（初始隱藏） -->
     <div id="dashboard-content" class="dashboard-shell hidden">
+        <!-- 載入中覆蓋層 -->
+        <div id="loading-overlay" class="fixed inset-0 z-[90] flex items-center justify-center pointer-events-none" style="background: rgba(15,23,42,0.85);">
+            <div class="text-center">
+                <div class="inline-block w-12 h-12 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-white font-bold mt-4">載入中...</p>
+            </div>
+        </div>
         <header class="dashboard-hero">
             <div>
                 <h1 class="dashboard-title">各單位印表機列印量</h1>
@@ -1472,6 +1479,8 @@
             if (dashboardLoading) return;
             dashboardLoading = true;
             setRefreshLoading(true);
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.remove('hidden');
 
             try {
                 const { data: rawPrinters } = await supabaseClient
@@ -1529,6 +1538,8 @@
             } finally {
                 dashboardLoading = false;
                 setRefreshLoading(false);
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) overlay.classList.add('hidden');
             }
         }
 
@@ -2468,6 +2479,7 @@
             items.forEach(item => {
                 const button = document.createElement('button');
                 button.type = 'button';
+                button.tabIndex = 0;
                 button.dataset.unit = item.value;
                 const hasToday = item.value === 'all' ? false : (unitsWithTodayPrintData.get(item.value) || false);
                 button.className = 'unit-filter-button';
@@ -2481,6 +2493,12 @@
                 label.textContent = item.label;
                 button.appendChild(label);
                 button.addEventListener('click', () => filterByUnit(item.value));
+                button.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        filterByUnit(item.value);
+                    }
+                });
                 buttons.appendChild(button);
             });
         }
@@ -2927,6 +2945,16 @@
             document.getElementById('history-modal').classList.add('hidden');
         }
 
+        // Escape 鍵關閉 modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('history-modal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            }
+        });
+
         // == 認證邏輯 ==
         let currentUser = null;
 
@@ -2961,6 +2989,12 @@
         function setAuthState(isLoggedIn) {
             document.getElementById('login-screen').style.display = isLoggedIn ? 'none' : 'flex';
             document.getElementById('dashboard-content').classList.toggle('hidden', !isLoggedIn);
+
+            // 登入後隱藏載入覆蓋層（由 renderDashboard 在資料載入後重新顯示）
+            if (isLoggedIn) {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) overlay.classList.add('hidden');
+            }
 
             if (isLoggedIn && currentUser) {
                 addSignOutButton(currentUser);
