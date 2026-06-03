@@ -203,7 +203,7 @@
         function addLog(msg, level) {
             const logEl = document.getElementById('log-content');
             const colors = { info: '#3b82f6', warn: '#f59e0b', ok: '#22c55e', error: '#ef4444' };
-            logEl.innerHTML += `<span style="color:${colors[level] || '#334155'}">${msg}</span>\n`;
+            logEl.innerHTML += `<span style="color:${colors[level] || '#334155'}">${escapeHtml(msg)}</span>\n`;
             logEl.scrollTop = logEl.scrollHeight;
         }
 
