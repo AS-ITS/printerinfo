@@ -1368,6 +1368,7 @@
         let dateRangeEnd = '';
         let currentPage = 1;
         const PAGE_SIZE = 20;
+        let renderedPrinterPageIds = [];
 
         function getDefaultDateRange() {
             // 使用 Asia/Taipei 時區與 server 保持一致
@@ -2580,48 +2581,128 @@
             const end = start + PAGE_SIZE;
             const pagePrinters = printers.slice(start, end);
 
-            tbody.innerHTML = pagePrinters.map(p => {
+            // === key-based DOM diffing：只更新變更的列 ===
+            const currentIds = new Set(renderedPrinterPageIds);
+            const newIds = new Set(pagePrinters.map(p => p.id));
+
+            // 移除已不在目前的列
+            const toRemove = renderedPrinterPageIds.filter(id => !newIds.has(id));
+            toRemove.forEach(id => {
+                const row = tbody.querySelector(`tr[data-printer-id="${id}"]`);
+                if (row) row.remove();
+            });
+
+            // 新增/更新列
+            pagePrinters.forEach(p => {
+                const row = tbody.querySelector(`tr[data-printer-id="${p.id}"]`);
                 const statusClass = p.printer_status === 'warning' ? 'status-warning' :
                     p.printer_status === 'error' ? 'status-error' : 'status-normal';
                 const statusLabel = p.printer_status === 'warning' ? '注意' :
                     p.printer_status === 'error' ? '異常' : '正常';
 
+                if (!row) {
+                    // 新增列
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-t border-white/5 hover:bg-white/5 transition-colors';
+                    tr.setAttribute('data-printer-id', p.id);
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">
+                            <div class="status-cell">
+                                <div class="status-dot" title=""></div>
+                                <span class="status-text"></span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-300 text-xs font-bold"></td>
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-white"></div>
+                            <div class="text-[11px] text-slate-500"></div>
+                            <div class="text-[11px] text-slate-500 md:hidden"></div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell"></td>
+                        <td class="px-4 py-3 text-center hidden md:table-cell"></td>
+                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell"></td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="text-lg font-black text-white"></div>
+                            <div class="text-[10px] text-slate-500"></div>
+                        </td>
+                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:"></span></td>
+                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:"></span></td>
+                        <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="supply-chip font-mono" style="color:"></span></td>
+                        <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300"></span></td>
+                        <td class="px-4 py-3 text-center whitespace-nowrap">
+                            <a href="" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
+                            <button class="action-link text-indigo-400 hover:text-indigo-300 mr-2">歷史</button>
+                            <button class="action-link text-emerald-400 hover:text-emerald-300">耗材</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+
+                // 更新列內容
+                const cells = row.cells;
+                // cell 0: status
+                const dot = cells[0].querySelector('.status-dot');
+                const text = cells[0].querySelector('.status-text');
+                if (dot) { dot.className = `status-dot ${statusClass}`; dot.title = statusLabel; }
+                if (text) text.textContent = statusLabel;
+
+                // cell 1: unit
+                cells[1].textContent = escapeHtml(p.unit) || '-';
+
+                // cell 2: location + model
+                const locDiv = cells[2].querySelector('.font-bold');
+                const modelDiv = cells[2].querySelector('.text-\\[11px\\]');
+                const modelMdDiv = cells[2].querySelector('.text-\\[11px\\].md\\:hidden');
+                if (locDiv) locDiv.textContent = escapeHtml(p.location) || '-';
+                if (modelDiv) modelDiv.textContent = escapeHtml(p.model) || '-';
+                if (modelMdDiv) modelMdDiv.textContent = escapeHtml(p.ip_address);
+
+                // cell 3: model (desktop)
+                cells[3].textContent = escapeHtml(p.model);
+
+                // cell 4: color printer
+                cells[4].textContent = isColorPrinter(escapeHtml(p.model)) ? '✔' : '✘';
+
+                // cell 5: IP (desktop)
+                cells[5].textContent = escapeHtml(p.ip_address);
+
+                // cell 6: daily stats
+                const dailyTotalDiv = cells[6].querySelector('.text-lg');
+                const dailyDetailDiv = cells[6].querySelector('.text-\\[10px\\]');
+                if (dailyTotalDiv) dailyTotalDiv.textContent = (p.daily_total || 0).toLocaleString();
+                if (dailyDetailDiv) dailyDetailDiv.textContent = `列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}`;
+
+                // cell 7-9: supply chips
                 const toner = getSupplyPercent(p, 'toner');
                 const ink = getSupplyPercent(p, 'ink');
                 const paper = getSupplyPercent(p, 'paper');
-                return `
-                    <tr class="border-t border-white/5 hover:bg-white/5 transition-colors">
-                        <td class="px-4 py-3">
-                            <div class="status-cell">
-                                <div class="status-dot ${statusClass}" title="${statusLabel}"></div>
-                                <span class="status-text">${statusLabel}</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3 text-slate-300 text-xs font-bold">${escapeHtml(p.unit) || '-'}</td>
-                        <td class="px-4 py-3">
-                            <div class="font-bold text-white">${escapeHtml(p.location) || '-'}</div>
-                            <div class="text-[11px] text-slate-500">${escapeHtml(p.model) || '-'}</div>
-                            <div class="text-[11px] text-slate-500 md:hidden">${escapeHtml(p.ip_address)}</div>
-                        </td>
-                        <td class="px-4 py-3 text-slate-400 text-xs hidden md:table-cell">${escapeHtml(p.model)}</td>
-                        <td class="px-4 py-3 text-center hidden md:table-cell">${isColorPrinter(escapeHtml(p.model)) ? '✔' : '✘'}</td>
-                        <td class="px-4 py-3 text-slate-400 font-mono text-xs hidden lg:table-cell">${escapeHtml(p.ip_address)}</td>
-                        <td class="px-4 py-3 text-right">
-                            <div class="text-lg font-black text-white">${(p.daily_total || 0).toLocaleString()}</div>
-                            <div class="text-[10px] text-slate-500">列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}</div>
-                        </td>
-                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:${getSupplyColor(toner)}">${toner}%</span></td>
-                        <td class="px-4 py-3 text-right"><span class="supply-chip font-mono" style="color:${getSupplyColor(ink)}">${ink}%</span></td>
-                        <td class="px-4 py-3 text-right hidden lg:table-cell"><span class="supply-chip font-mono" style="color:${getSupplyColor(paper)}">${paper}%</span></td>
-                        <td class="px-4 py-3 text-right hidden xl:table-cell"><span class="font-mono text-xs text-slate-300">${(p.total_all_time || 0).toLocaleString()}</span></td>
-                        <td class="px-4 py-3 text-center whitespace-nowrap">
-                            <a href="printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address)}" class="action-link text-pink-400 hover:text-pink-300 mr-2">明細</a>
-                            <button onclick="showHistory(${p.id})" class="action-link text-indigo-400 hover:text-indigo-300 mr-2">歷史</button>
-                            <button onclick="showSupplyMonitor(${p.id})" class="action-link text-emerald-400 hover:text-emerald-300">耗材</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                [
+                    [cells[7], toner],
+                    [cells[8], ink],
+                    [cells[9], paper]
+                ].forEach(([cell, percent]) => {
+                    const chip = cell.querySelector('.supply-chip');
+                    if (chip) {
+                        chip.textContent = `${percent}%`;
+                        chip.style.color = getSupplyColor(percent);
+                    }
+                });
+
+                // cell 10: total all time
+                const totalCell = cells[10].querySelector('.font-mono');
+                if (totalCell) totalCell.textContent = (p.total_all_time || 0).toLocaleString();
+
+                // cell 11: action buttons
+                const actions = cells[11];
+                const detailLink = actions.querySelector('a');
+                const historyBtn = actions.querySelectorAll('button')[0];
+                const supplyBtn = actions.querySelectorAll('button')[1];
+                if (detailLink) detailLink.href = `printer_detail.html?id=${p.id}&ip=${encodeURIComponent(p.ip_address)}`;
+                if (historyBtn) historyBtn.onclick = () => showHistory(p.id);
+                if (supplyBtn) supplyBtn.onclick = () => showSupplyMonitor(p.id);
+            });
+
+            renderedPrinterPageIds = pagePrinters.map(p => p.id);
 
             // 渲染分頁控制
             renderPagination(printers.length, totalPages);
