@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>印表機明細 | Printer Detail</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" onerror="window.__chartJsError=true"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="config.js"></script>
     <style>
@@ -468,6 +468,10 @@
 </head>
 
 <body>
+    <!-- Chart.js CDN 載入失敗提示 -->
+    <div id="chart-error-banner" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-red-500/90 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-bold max-w-md text-center">
+        圖表載入失敗：Chart.js CDN 無法連線，圖表功能將無法使用。
+    </div>
     <!-- 登入畫面 -->
     <div id="login-screen" class="fixed inset-0 z-[100] flex items-center justify-center" style="background: radial-gradient(circle at 0% 0%, #0f172a, #1e1b4b);">
         <div class="text-center">
@@ -570,6 +574,13 @@
     </div>
 
     <script>
+        // Chart.js CDN 載入失敗檢測
+        setTimeout(() => {
+            if (window.__chartJsError || !window.Chart) {
+                document.getElementById('chart-error-banner').classList.remove('hidden');
+            }
+        }, 3000);
+
         let cachedPrinterData = null;
         let cachedSupplies = {};
         let cachedIncidents = [];
