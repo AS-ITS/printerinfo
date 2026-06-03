@@ -2594,7 +2594,7 @@
 
             // 新增/更新列
             pagePrinters.forEach(p => {
-                const row = tbody.querySelector(`tr[data-printer-id="${p.id}"]`);
+                let row = tbody.querySelector(`tr[data-printer-id="${p.id}"]`);
                 const statusClass = p.printer_status === 'warning' ? 'status-warning' :
                     p.printer_status === 'error' ? 'status-error' : 'status-normal';
                 const statusLabel = p.printer_status === 'warning' ? '注意' :
