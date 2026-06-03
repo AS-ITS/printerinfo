@@ -2802,16 +2802,6 @@
             return '#22c55e';
         }
 
-        function renderRow(label, value, color, extraClass = "") {
-            if (value === undefined || value === null) value = 0;
-            return `
-                <div class="flex justify-between items-center">
-                    <span class="text-slate-400 font-medium">${label}</span>
-                    <span class="text-${color}-400 font-mono ${extraClass}">${value.toLocaleString()}</span>
-                </div>
-            `;
-        }
-
         // == 歷史彈窗 ==
         function showHistory(printerId) {
             const p = cachedPrinters.find(printer => printer.id === printerId);
