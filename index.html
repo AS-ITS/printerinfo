@@ -2534,11 +2534,9 @@
             }
             container.classList.remove('hidden');
 
-            // 用 printer_id 去 cachedPrinters 找 location/ip
-            const getPrinterInfo = (id) => {
-                const p = cachedPrinters.find(x => x.id === id);
-                return p ? { printer: p.location, ip: p.ip_address } : { printer: '?', ip: '' };
-            };
+            // 預建 printerId -> info Map，將 O(N*M) 降為 O(N+M)
+            const printerMap = new Map(cachedPrinters.map(p => [p.id, { printer: p.location, ip: p.ip_address }]));
+            const getPrinterInfo = (id) => printerMap.get(id) || { printer: '?', ip: '' };
 
             list.innerHTML = allIncidents.map(inc => {
                 const info = getPrinterInfo(inc.printer_id);
