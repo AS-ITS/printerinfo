@@ -1834,6 +1834,19 @@
         // == 趨勢圖渲染 ==
         let trendChartInstance = null;
 
+        // == Chart 共用 utility ==
+        function destroyChart(instance, canvasId) {
+            if (instance) {
+                instance.destroy();
+            }
+            if (typeof Chart !== 'undefined' && Chart.instances) {
+                Object.keys(Chart.instances).forEach(key => {
+                    const chart = Chart.instances[key];
+                    if (chart && chart.canvas && chart.canvas.id === canvasId) chart.destroy();
+                });
+            }
+        }
+
         function renderTrendChart(printers) {
             const range = getSelectedDateRange();
             // 使用預建的全局 trend 快取，避免每次遍歷所有印表機
@@ -1849,19 +1862,8 @@
 
             if (sortedDates.length === 0) return;
 
-            // 銷毀舊圖表實例
-            if (trendChartInstance) {
-                trendChartInstance.destroy();
-                trendChartInstance = null;
-            }
-
-            // 清理 Chart.js 全域註冊表中殘留的舊實例
-            Object.keys(Chart.instances).forEach(key => {
-                const chart = Chart.instances[key];
-                if (chart && chart.canvas && chart.canvas.id === 'trend-chart') {
-                    chart.destroy();
-                }
-            });
+            destroyChart(trendChartInstance, 'trend-chart');
+            trendChartInstance = null;
 
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -1913,16 +1915,8 @@
         let yearlyChartInstance = null;
 
         function destroyYearlyChart() {
-            if (yearlyChartInstance) {
-                yearlyChartInstance.destroy();
-                yearlyChartInstance = null;
-            }
-            if (typeof Chart !== 'undefined' && Chart.instances) {
-                Object.keys(Chart.instances).forEach(key => {
-                    const chart = Chart.instances[key];
-                    if (chart && chart.canvas && chart.canvas.id === 'yearly-chart') chart.destroy();
-                });
-            }
+            destroyChart(yearlyChartInstance, 'yearly-chart');
+            yearlyChartInstance = null;
         }
 
         function setYearlyChartEmpty(message, isEmpty) {
@@ -2033,16 +2027,8 @@
         let unitChartInstance = null;
 
         function destroyUnitChart() {
-            if (unitChartInstance) {
-                unitChartInstance.destroy();
-                unitChartInstance = null;
-            }
-            if (typeof Chart !== 'undefined' && Chart.instances) {
-                Object.keys(Chart.instances).forEach(key => {
-                    const chart = Chart.instances[key];
-                    if (chart && chart.canvas && chart.canvas.id === 'unit-chart') chart.destroy();
-                });
-            }
+            destroyChart(unitChartInstance, 'unit-chart');
+            unitChartInstance = null;
         }
 
         function setUnitChartEmpty(message, isEmpty) {
@@ -2249,16 +2235,8 @@
         let printerCountChartInstance = null;
 
         function destroyPrinterCountChart() {
-            if (printerCountChartInstance) {
-                printerCountChartInstance.destroy();
-                printerCountChartInstance = null;
-            }
-            if (typeof Chart !== 'undefined' && Chart.instances) {
-                Object.keys(Chart.instances).forEach(key => {
-                    const chart = Chart.instances[key];
-                    if (chart && chart.canvas && chart.canvas.id === 'printer-count-chart') chart.destroy();
-                });
-            }
+            destroyChart(printerCountChartInstance, 'printer-count-chart');
+            printerCountChartInstance = null;
         }
 
         function setPrinterCountEmpty(message, isEmpty) {
@@ -2350,16 +2328,8 @@
         let monthlyChartInstance = null;
 
         function destroyMonthlyChart() {
-            if (monthlyChartInstance) {
-                monthlyChartInstance.destroy();
-                monthlyChartInstance = null;
-            }
-            if (typeof Chart !== 'undefined' && Chart.instances) {
-                Object.keys(Chart.instances).forEach(key => {
-                    const chart = Chart.instances[key];
-                    if (chart && chart.canvas && chart.canvas.id === 'monthly-chart') chart.destroy();
-                });
-            }
+            destroyChart(monthlyChartInstance, 'monthly-chart');
+            monthlyChartInstance = null;
         }
 
         function setMonthlyChartEmpty(message, isEmpty) {
