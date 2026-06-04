@@ -1689,61 +1689,6 @@
             };
         }
 
-        function hasCounterReading(row) {
-            return ['total_count', 'print_count', 'copy_count', 'scan_total', 'fax_count']
-                .some(key => Number(row?.[key] || 0) > 0);
-        }
-
-        function counterDelta(current, previous, key) {
-            return Math.max(0, Number(current?.[key] || 0) - Number(previous?.[key] || 0));
-        }
-
-        function buildCorrectedTrend(rawMetrics) {
-            let previousComparable = null;
-            return rawMetrics.map(row => {
-                const hasReading = hasCounterReading(row);
-                let dailyPrint = 0;
-                let dailyCopy = 0;
-                let dailyScan = 0;
-                let dailyFax = 0;
-                let dailyTotal = 0;
-                let totalDelta = 0;
-
-                if (hasReading && previousComparable) {
-                    dailyPrint = counterDelta(row, previousComparable, 'print_count');
-                    dailyCopy = counterDelta(row, previousComparable, 'copy_count');
-                    dailyScan = counterDelta(row, previousComparable, 'scan_total');
-                    dailyFax = counterDelta(row, previousComparable, 'fax_count');
-                    totalDelta = counterDelta(row, previousComparable, 'total_count');
-
-                    // 總數量 = 列印 + 影印 + 傳真（不含掃描）
-                    dailyTotal = dailyPrint + dailyCopy + dailyFax;
-
-                    // 若所有 daily 欄位為 0 但 total 有變化（計數器重設），回傳 totalDelta
-                    if (dailyPrint === 0 && dailyCopy === 0 && dailyFax === 0 && totalDelta > 0) {
-                        dailyTotal = totalDelta;
-                    }
-                }
-
-                const corrected = {
-                    ...row,
-                    daily_print: dailyPrint,
-                    daily_copy: dailyCopy,
-                    daily_scan: dailyScan,
-                    daily_fax: dailyFax,
-                    daily_total: dailyTotal
-                };
-
-                if (hasReading) {
-                    previousComparable = row;
-                } else if (!previousComparable) {
-                    previousComparable = row;
-                }
-
-                return corrected;
-            });
-        }
-
         function buildPrinterData(p) {
             const supplies = (cachedSupplies[p.id] || []).map(s => ({
                 type: { toner: 0, ink: 1, paper: 2 }[s.supply_type] || 0,

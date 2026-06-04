@@ -602,32 +602,6 @@
         let currentPrinterIP = getUrlParam('ip');
         let currentPrinterID = getUrlParam('id');
 
-        // == 每日增量計算 ==
-        function buildCorrectedTrend(rawMetrics) {
-            if (!rawMetrics || rawMetrics.length === 0) return [];
-            let previousComparable = null;
-            return rawMetrics.map(row => {
-                const hasReading = ['total_count', 'print_count', 'copy_count', 'scan_total', 'fax_count']
-                    .some(key => Number(row?.[key] || 0) > 0);
-                let dailyPrint = 0, dailyCopy = 0, dailyScan = 0, dailyFax = 0, dailyTotal = 0;
-
-                if (hasReading && previousComparable) {
-                    dailyPrint = Math.max(0, Number(row?.print_count || 0) - Number(previousComparable?.print_count || 0));
-                    dailyCopy = Math.max(0, Number(row?.copy_count || 0) - Number(previousComparable?.copy_count || 0));
-                    dailyScan = Math.max(0, Number(row?.scan_total || 0) - Number(previousComparable?.scan_total || 0));
-                    dailyFax = Math.max(0, Number(row?.fax_count || 0) - Number(previousComparable?.fax_count || 0));
-                    dailyTotal = dailyPrint + dailyCopy + dailyFax;
-                }
-
-                const corrected = { ...row, daily_print: dailyPrint, daily_copy: dailyCopy, daily_scan: dailyScan, daily_fax: dailyFax, daily_total: dailyTotal };
-
-                if (hasReading) previousComparable = row;
-                else if (!previousComparable) previousComparable = row;
-
-                return corrected;
-            });
-        }
-
         // == 載入明細資料 ==
         async function renderDetail(options = {}) {
             const force = Boolean(options.force);
