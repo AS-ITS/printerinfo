@@ -316,21 +316,23 @@
             document.getElementById('gt-summary').style.display = 'none';
             exportBtn.disabled = true;
 
-            // === Ground Truth mode ===
+            // === Ground Truth mode (統一使用 daily_stats 作為資料來源) ===
             if (params.mode === 'ground_truth') {
                 document.getElementById('mode-subtitle').textContent = 'Ground Truth 比對模式';
-                addLog('開始 Ground Truth 模式：直接從 printer_metrics 重算增量...', 'info');
+                addLog('開始 Ground Truth 模式：使用 daily_stats 資料...', 'info');
 
                 const { data: rawPrinters } = await supabaseClient.from('printers').select('*');
                 const printerMap = {};
                 (rawPrinters || []).forEach(p => { printerMap[p.ip_address] = p; printerMap[p.id] = p; });
 
-                const { data: rawMetrics } = await supabaseClient.from('printer_metrics').select('*');
-                addLog(`取得 ${rawMetrics?.length || 0} 筆 printer_metrics 記錄`, 'info');
+                // 統一使用 daily_stats 作為資料來源（與 default 模式一致）
+                const { data: allStats } = await supabaseClient.from('daily_stats').select('*').order('recorded_at', { ascending: true });
+                addLog('取得 ' + (allStats ? allStats.length : 0) + ' 筆 daily_stats 記錄', 'info');
 
-                // Duplicate detection
+                // 同時查詢 printer_metrics 做重複檢測
+                const { data: dupMetrics } = await supabaseClient.from('printer_metrics').select('printer_id, recorded_at');
                 const dupCounts = {};
-                (rawMetrics || []).forEach(m => {
+                (dupMetrics || []).forEach(m => {
                     const key = m.printer_id + '_' + m.recorded_at.substring(0, 10);
                     dupCounts[key] = (dupCounts[key] || 0) + 1;
                 });
@@ -344,77 +346,61 @@
                         return { unit: (p?p.unit:'-'), location: (p?p.location:'-'), ip: 'printer_id=' + pidStr, model: (p?p.model:'-'), date: date, currentTotal: 0, prevTotal: 0, gapDays: 0, deltaTotal: 0, dailyAvg: 0, anomalyType: 'duplicate', risk: 'warn', riskLabel: 'warn', riskCls: 'badge-dup', detail: cnt + ' 筆重複' };
                     });
 
-                // Deduplicate by printer_id + date (take latest)
-                const perPrinterDay = {};
-                (rawMetrics || []).forEach(m => {
-                    const key = m.printer_id + '_' + m.recorded_at.substring(0, 10);
-                    if (!perPrinterDay[key] || m.recorded_at > perPrinterDay[key].recorded_at) {
-                        perPrinterDay[key] = m;
-                    }
+                // 依 ip 分組並排序
+                const byIP = {};
+                (allStats || []).forEach(m => {
+                    if (!byIP[m.ip_address]) byIP[m.ip_address] = [];
+                    byIP[m.ip_address].push(m);
                 });
 
-                // Group by printer_id and sort
-                const byPrinter = {};
-                Object.values(perPrinterDay).forEach(m => {
-                    if (!byPrinter[m.printer_id]) byPrinter[m.printer_id] = [];
-                    byPrinter[m.printer_id].push(m);
-                });
-                for (const pid of Object.keys(byPrinter)) {
-                    byPrinter[pid].sort(function(a, b) { return a.recorded_at.localeCompare(b.recorded_at); });
-                }
-
-                // Recalculate deltas
-                const gtRecalc = {};
-                for (const [pid, rows] of Object.entries(byPrinter)) {
-                    for (let i = 1; i < rows.length; i++) {
-                        const cur = rows[i], prev = rows[i-1];
-                        const gapDays = Math.round((new Date(cur.recorded_at) - new Date(prev.recorded_at)) / 86400000);
-                        if (gapDays <= 0) continue;
-                        const ip = printerMap[pid] ? printerMap[pid].ip_address : '-';
-                        const date = cur.recorded_at.substring(0, 10);
-                        const dp = Math.max(0, (cur.print_count||0) - (prev.print_count||0));
-                        const dc = Math.max(0, (cur.copy_count||0) - (prev.copy_count||0));
-                        const ds = Math.max(0, (cur.scan_total||0) - (prev.scan_total||0));
-                        const df = Math.max(0, (cur.fax_count||0) - (prev.fax_count||0));
-                        const dt = Math.max(0, (cur.total_count||0) - (prev.total_count||0));
-                        gtRecalc[ip + '_' + date] = { pid: pid, ip: ip, date: date, gapDays: gapDays, dp: dp, dc: dc, ds: ds, df: df, dt: dt, sum: dp + dc + ds + df };
-                    }
-                }
-
-                const { data: allStats } = await supabaseClient.from('daily_stats').select('*');
-                const gtStats = {};
-                (allStats || []).forEach(s => { gtStats[s.ip_address + '_' + s.recorded_at.substring(0, 10)] = s; });
-
-                // Compare
                 const gtMissList = [];
                 let gtMatch = 0, gtMismatch = 0;
 
-                for (const [key, recalc] of Object.entries(gtRecalc)) {
-                    const stat = gtStats[key];
-                    if (!stat) {
-                        gtMissList.push({ unit: (printerMap[recalc.pid]?printerMap[recalc.pid].unit:'-'), location: (printerMap[recalc.pid]?printerMap[recalc.pid].location:'-'), ip: recalc.ip, model: (printerMap[recalc.pid]?printerMap[recalc.pid].model:'-'), date: recalc.date, currentTotal: recalc.dt, prevTotal: 0, gapDays: recalc.gapDays, deltaTotal: 0, dailyAvg: 0, anomalyType: 'groundTruth', risk: 'miss', riskLabel: 'GT差異', riskCls: 'badge-miss', detail: 'daily_stats 無此筆' });
-                        gtMismatch++; continue;
-                    }
-                    const missItems = [];
-                    if (stat.daily_print !== recalc.dp) missItems.push('print: GS=' + stat.daily_print + ' GT=' + recalc.dp);
-                    if (stat.daily_copy !== recalc.dc) missItems.push('copy: GS=' + stat.daily_copy + ' GT=' + recalc.dc);
-                    if (stat.daily_scan !== recalc.ds) missItems.push('scan: GS=' + stat.daily_scan + ' GT=' + recalc.ds);
-                    if (stat.daily_fax !== recalc.df) missItems.push('fax: GS=' + stat.daily_fax + ' GT=' + recalc.df);
-                    if (stat.daily_total !== recalc.dt) missItems.push('total: GS=' + stat.daily_total + ' GT=' + recalc.dt);
-                    if (stat.daily_total !== recalc.sum) missItems.push('total!=sum: GS=' + stat.daily_total + ' sum=' + recalc.sum);
+                for (const [ip, rows] of Object.entries(byIP)) {
+                    rows.sort(function(a, b) { return a.recorded_at.localeCompare(b.recorded_at); });
+                    let prevValid = null, prevValidDate = null;
 
-                    if (missItems.length > 0) {
-                        gtMissList.push({ unit: (printerMap[recalc.pid]?printerMap[recalc.pid].unit:'-'), location: (printerMap[recalc.pid]?printerMap[recalc.pid].location:'-'), ip: recalc.ip, model: (printerMap[recalc.pid]?printerMap[recalc.pid].model:'-'), date: recalc.date, currentTotal: stat.daily_total, prevTotal: recalc.dt, gapDays: recalc.gapDays, deltaTotal: missItems.length, dailyAvg: 0, anomalyType: 'groundTruth', risk: 'miss', riskLabel: 'GT差異', riskCls: 'badge-miss', detail: missItems.join(' | ') });
-                        gtMismatch++;
-                    } else {
-                        gtMatch++;
+                    for (let ri = 0; ri < rows.length; ri++) {
+                        const row = rows[ri];
+                        const hasCounter = (row.total_count||0) + (row.print_count||0) + (row.copy_count||0) + (row.scan_total||0) + (row.fax_count||0) > 0;
+                        if (!hasCounter) continue;
+
+                        const currentDate = row.recorded_at.substring(0, 10);
+                        if (!prevValid) { prevValid = row; prevValidDate = currentDate; continue; }
+
+                        const prevDate = prevValidDate;
+                        const d1 = new Date(currentDate), d2 = new Date(prevDate);
+                        const gapDays = Math.round((d1 - d2) / 86400000);
+                        if (gapDays <= 0) { prevValid = row; prevValidDate = currentDate; continue; }
+
+                        const dp = Math.max(0, (row.print_count||0) - (prevValid.print_count||0));
+                        const dc = Math.max(0, (row.copy_count||0) - (prevValid.copy_count||0));
+                        const ds = Math.max(0, (row.scan_total||0) - (prevValid.scan_total||0));
+                        const df = Math.max(0, (row.fax_count||0) - (prevValid.fax_count||0));
+                        const dt = Math.max(0, (row.total_count||0) - (prevValid.total_count||0));
+                        const sumFields = dp + dc + ds + df;
+
+                        // 比對 daily_stats 內部的 total 與 sum(fields) 一致性
+                        if (row.daily_total != null && sumFields > 0 && row.daily_total !== sumFields) {
+                            gtMissList.push({
+                                unit: (printerMap[ip]?printerMap[ip].unit:'-'), location: (printerMap[ip]?printerMap[ip].location:'-'), ip: ip, model: (printerMap[ip]?printerMap[ip].model:'-'),
+                                date: currentDate, currentTotal: row.daily_total, prevTotal: prevValid.total_count, gapDays: gapDays, deltaTotal: 1, dailyAvg: 0,
+                                anomalyType: 'groundTruth', risk: 'miss', riskLabel: 'GT差異', riskCls: 'badge-miss',
+                                detail: 'total=' + row.daily_total + ' != sum(fields)=' + sumFields
+                            });
+                            gtMismatch++;
+                        } else {
+                            gtMatch++;
+                        }
+
+                        prevValid = row; prevValidDate = currentDate;
                     }
                 }
 
                 renderSummary(rawPrinters ? rawPrinters.length : 0, [], duplicates, [], [], [], [], []);
                 const gtSummaryEl = document.getElementById('gt-summary');
                 gtSummaryEl.style.display = 'block';
-                gtSummaryEl.textContent = 'Ground Truth：共 ' + Object.keys(gtRecalc).length + ' 筆、匹配 ' + gtMatch + '、差異 ' + gtMismatch;
+                gtSummaryEl.textContent = 'Ground Truth：共 ' + Object.keys(byIP).length + ' 台印表機、匹配 ' + gtMatch + '、差異 ' + gtMismatch;
 
                 const allGTMisses = gtMissList.sort(function(a,b) { return (a.risk==='miss'?0:1)-(b.risk==='miss'?0:1); });
                 const allResults = allGTMisses.concat(duplicates);
