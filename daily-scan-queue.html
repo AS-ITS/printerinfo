@@ -561,11 +561,13 @@
                 if (suppliesError) { console.error('[scan-queue] supplies error:', suppliesError); throw suppliesError; }
                 console.log('[scan-queue] supplies count:', rawSupplies?.length || 0);
 
-                // 4. 取得所有故障紀錄
+                // 4. 取得最近 30 天故障紀錄
                 console.log('[scan-queue] querying incidents...');
+                const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().substring(0, 10);
                 const { data: rawIncidents, error: incidentsError } = await supabaseClient
                     .from('incidents')
-                    .select('*');
+                    .select('*')
+                    .gte('incident_date', thirtyDaysAgo);
 
                 if (incidentsError) { console.error('[scan-queue] incidents error:', incidentsError); throw incidentsError; }
                 console.log('[scan-queue] incidents count:', rawIncidents?.length || 0);
