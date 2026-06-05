@@ -88,7 +88,7 @@ var (
 	supplyMap      = make(map[int][]Supply)
 	incidentMap    = make(map[int][]Incident)
 	dashboardCache []byte
-	cacheMutex     sync.Mutex
+	cacheMutex     sync.RWMutex
 	dataLoaded     bool
 )
 
@@ -105,7 +105,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// 設定連線池參數
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(5 * time.Minute)
 	defer db.Close()
+
+	// 驗證連線可用性
+	if err := db.Ping(); err != nil {
+		log.Fatal("資料庫連線失敗: ", err)
+	}
 
 	// 3. 初始載入資料
 	if err := loadAllData(); err != nil {
@@ -146,19 +155,13 @@ func main() {
 
 // loadAllData 從資料庫載入所有資料並更新緩存
 func loadAllData() error {
-	connStr := os.Getenv("SUPABASE_DB_CONNECTION")
-	if connStr == "" {
-		return fmt.Errorf("未設定 SUPABASE_DB_CONNECTION")
-	}
+	// 使用 mutex 防止 concurrent 呼叫導致 race condition
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
 
-	// 重新連線：先關閉舊連線避免洩漏
-	if db != nil {
-		_ = db.Close()
-	}
-	var err error
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		return err
+	// 驗證連線可用性（使用 pool 重用的 db，不再關閉/重新開啟）
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("資料庫連線異常: %w", err)
 	}
 
 	// 3. 查詢 daily_stats 視圖（歷史趨勢，包含每日增量 daily_total）
@@ -387,7 +390,22 @@ func handlerPrinter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 返回全部
-	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: dashboardCache})
+	cacheMutex.RLock()
+	cache := dashboardCache
+	dataLoadedFlag := dataLoaded
+	cacheMutex.RUnlock()
+
+	if !dataLoadedFlag {
+		if err := loadAllData(); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: err.Error()})
+			return
+		}
+		cacheMutex.RLock()
+		cache = dashboardCache
+		cacheMutex.RUnlock()
+	}
+	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: cache})
 }
 
 // handlerPrinterByID 處理 /api/printer/{id} 端點
@@ -438,11 +456,15 @@ func handlerPrinterByID(w http.ResponseWriter, r *http.Request) {
 
 // dashboardCacheData 解析快取的儀表板資料
 func dashboardCacheData() []DashboardPrinter {
-	if !dataLoaded || dashboardCache == nil {
+	cacheMutex.RLock()
+	loaded := dataLoaded
+	cache := dashboardCache
+	cacheMutex.RUnlock()
+	if !loaded || cache == nil {
 		return nil
 	}
 	var resp DashboardResponse
-	if err := json.Unmarshal(dashboardCache, &resp); err != nil {
+	if err := json.Unmarshal(cache, &resp); err != nil {
 		return nil
 	}
 	return resp.Printers
@@ -538,20 +560,25 @@ func handlerDailyScanRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheMutex.RLock()
 	if !dataLoaded {
+		cacheMutex.RUnlock()
 		if err := loadAllData(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(APIResponse{Success: false, Error: err.Error()})
 			return
 		}
+		cacheMutex.RLock()
 	}
+	cache := dashboardCache
+	cacheMutex.RUnlock()
 
 	// 返回完整的儀表板資料，已經包含所有掃描資訊
-	if dashboardCache == nil {
+	if cache == nil {
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(APIResponse{Success: false, Error: "No data available"})
 		return
 	}
 
-	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: dashboardCache})
+	json.NewEncoder(w).Encode(APIResponse{Success: true, Data: cache})
 }
