@@ -1,6 +1,14 @@
 const SUPABASE_URL = 'https://aopzclrptvpfovklhcip.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvcHpjbHJwdHZwZm92a2xoY2lwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDI1MzgsImV4cCI6MjA5MjM3ODUzOH0.ZXpDc6ADxFXwSj6LYjcZn9viytSHEPA_69E7VY2bVT0';
 
+// == 資料保留上限：預設只查詢最近 MAX_RETENTION_YEARS 年的 daily_stats ==
+const MAX_RETENTION_YEARS = 5;
+function getRetentionCutoff() {
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - MAX_RETENTION_YEARS);
+    return cutoff.toISOString().substring(0, 10);
+}
+
 // == 共用 counter delta 計算 ==
 function counterDelta(current, previous, key) {
     return Math.max(0, Number(current?.[key] || 0) - Number(previous?.[key] || 0));

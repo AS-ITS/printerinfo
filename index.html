@@ -1480,14 +1480,6 @@
             return rows;
         }
 
-        // 資料保留上限：只保留最近 MAX_RETENTION_YEARS 年的 daily_stats
-        const MAX_RETENTION_YEARS = 5;
-        function getRetentionCutoff() {
-            const cutoff = new Date();
-            cutoff.setFullYear(cutoff.getFullYear() - MAX_RETENTION_YEARS);
-            return cutoff.toISOString().substring(0, 10);
-        }
-
         // == 儀表板渲染（需要登入後才呼叫） ==
         async function renderDashboard(options = {}) {
             const force = Boolean(options.force);

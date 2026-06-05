@@ -326,7 +326,8 @@
                 (rawPrinters || []).forEach(p => { printerMap[p.ip_address] = p; printerMap[p.id] = p; });
 
                 // 統一使用 daily_stats 作為資料來源（與 default 模式一致）
-                const { data: allStats } = await supabaseClient.from('daily_stats').select('*').order('recorded_at', { ascending: true });
+                const cutoffDate = getRetentionCutoff();
+                const { data: allStats } = await supabaseClient.from('daily_stats').select('*').gte('recorded_at', cutoffDate).order('recorded_at', { ascending: true });
                 addLog('取得 ' + (allStats ? allStats.length : 0) + ' 筆 daily_stats 記錄', 'info');
 
                 // 同時查詢 printer_metrics 做重複檢測
@@ -429,7 +430,8 @@
             const printerMap = {};
             (rawPrinters || []).forEach(p => { printerMap[p.ip_address] = p; });
 
-            const { data: allStats } = await supabaseClient.from('daily_stats').select('*').order('recorded_at', { ascending: true });
+            const cutoffDate = getRetentionCutoff();
+            const { data: allStats } = await supabaseClient.from('daily_stats').select('*').gte('recorded_at', cutoffDate).order('recorded_at', { ascending: true });
             addLog('取得 ' + (allStats ? allStats.length : 0) + ' 筆 daily_stats 記錄', 'info');
 
             const byIP = {};
