@@ -1828,33 +1828,16 @@
                         pointHoverRadius: 5,
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
-                        }
-                    },
+                options: createChartOptions({
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: {
-                            grid: { color: '#eef1f5' },
-                            ticks: { color: '#526071', maxTicksLimit: 10, font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
+                        x: { ticks: { maxTicksLimit: 10 } },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                callback: value => Number(value).toLocaleString()
-                            },
+                            ticks: { callback: value => Number(value).toLocaleString() },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
         }
 
@@ -1925,35 +1908,20 @@
                         borderRadius: 4,
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                options: createChartOptions({
                     plugins: {
                         legend: {
                             labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 12, weight: '700' } }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
+                        x: { grid: { display: false } },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                callback: value => Number(value).toLocaleString()
-                            },
+                            ticks: { callback: value => Number(value).toLocaleString() },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
 
             // 渲染年度數據表格
@@ -2071,35 +2039,19 @@
                         }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                options: createChartOptions({
                     plugins: {
                         legend: {
-                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 12, weight: '700' } }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
+                            labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } }
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                callback: value => Number(value).toLocaleString()
-                            },
+                            ticks: { callback: value => Number(value).toLocaleString() },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
         }
 
@@ -2145,36 +2097,21 @@
                     labels: monthLabels,
                     datasets
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                options: createChartOptions({
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
+                        x: { grid: { display: false } },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                callback: value => Number(value).toLocaleString()
-                            },
+                            ticks: { callback: value => Number(value).toLocaleString() },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
         }
 
@@ -2241,33 +2178,16 @@
                         borderRadius: 4,
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
-                        }
-                    },
+                options: createChartOptions({
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
+                        x: { grid: { display: false } },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                stepSize: 1
-                            },
+                            ticks: { stepSize: 1 },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
         }
 
@@ -2354,36 +2274,21 @@
             monthlyChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: { labels: monthLabels, datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                options: createChartOptions({
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 11, weight: '700' } }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(23, 32, 51, 0.94)',
-                            titleFont: { family: 'Plus Jakarta Sans' },
-                            bodyFont: { family: 'Plus Jakarta Sans' },
                         }
                     },
                     scales: {
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
-                        },
+                        x: { grid: { display: false } },
                         y: {
-                            grid: { color: '#e5e9f0' },
-                            ticks: {
-                                color: '#526071',
-                                font: { family: 'Plus Jakarta Sans', weight: '700' },
-                                callback: value => Number(value).toLocaleString()
-                            },
+                            ticks: { callback: value => Number(value).toLocaleString() },
                             beginAtZero: true
                         }
                     }
-                }
+                })
             });
         }
 
@@ -2801,15 +2706,13 @@
                             borderRadius: 4,
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
+                    options: createChartOptions({
                         plugins: { legend: { display: false } },
                         scales: {
                             x: { grid: { display: false }, ticks: { color: '#64748b', maxTicksLimit: 15, font: { size: 10 } } },
                             y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' }, beginAtZero: true }
                         }
-                    }
+                    })
                 });
             }
         }

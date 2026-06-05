@@ -818,15 +818,16 @@
                         pointHoverRadius: 5,
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(23, 32, 51, 0.94)' } },
+                options: createChartOptions({
+                    plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { color: '#eef1f5' }, ticks: { color: '#526071', maxTicksLimit: 10, font: { family: 'Plus Jakarta Sans', weight: '700' } } },
-                        y: { grid: { color: '#e5e9f0' }, ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' }, callback: v => Number(v).toLocaleString() }, beginAtZero: true }
+                        x: { ticks: { maxTicksLimit: 10 } },
+                        y: {
+                            ticks: { callback: v => Number(v).toLocaleString() },
+                            beginAtZero: true
+                        }
                     }
-                }
+                })
             });
         }
 

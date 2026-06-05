@@ -19,6 +19,54 @@ function hasCounterReading(row) {
         .some(key => Number(row?.[key] || 0) > 0);
 }
 
+// == 共用 Chart.js options 工廠：套用預設樣式 + 個別覆寫 ==
+function createChartOptions(overrides = {}) {
+    const defaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                labels: { color: '#334155', font: { family: 'Plus Jakarta Sans', size: 12, weight: '700' } }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(23, 32, 51, 0.94)',
+                titleFont: { family: 'Plus Jakarta Sans' },
+                bodyFont: { family: 'Plus Jakarta Sans' }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: '#eef1f5' },
+                ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
+            },
+            y: {
+                grid: { color: '#e5e9f0' },
+                ticks: { color: '#526071', font: { family: 'Plus Jakarta Sans', weight: '700' } }
+            }
+        }
+    };
+    // Deep merge: overrides 會逐層覆蓋 defaults
+    return deepMerge(defaults, overrides);
+}
+
+function deepMerge(target, source) {
+    const result = { ...target };
+    for (const key in source) {
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            if (isPlainObject(result[key]) && isPlainObject(source[key])) {
+                result[key] = deepMerge(result[key], source[key]);
+            } else {
+                result[key] = source[key];
+            }
+        }
+    }
+    return result;
+}
+
+function isPlainObject(val) {
+    return val !== null && typeof val === 'object' && !Array.isArray(val);
+}
+
 // == 共用 corrected trend 建構 ==
 function buildCorrectedTrend(rawMetrics) {
     if (!rawMetrics || rawMetrics.length === 0) return [];
