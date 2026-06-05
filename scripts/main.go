@@ -482,7 +482,7 @@ func getPrinterByIP(ip string) (DashboardPrinter, bool) {
 }
 
 func supplyTypeToInt(t string) int {
-	switch t {
+	switch strings.ToLower(strings.TrimSpace(t)) {
 	case "toner":
 		return 0
 	case "ink":
@@ -490,6 +490,7 @@ func supplyTypeToInt(t string) int {
 	case "paper":
 		return 2
 	default:
+		log.Printf("unknown supply type: %s", t)
 		return 3
 	}
 }
