@@ -207,7 +207,8 @@
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        function renderSummary(totalPrinters, gaps, resets, largeJumps, negativeDeltas, consistencyMisses, perFieldAvg, duplicates) {
+        function renderSummary(opts) {
+            const { totalPrinters, gaps, resets, largeJumps, negativeDeltas, consistencyMisses, perFieldAvg, duplicates } = opts;
             const cards = document.getElementById('summary-cards');
             cards.innerHTML = `
                 <div class="summary-card" style="background:#f8fafc;border-color:#e2e8f0;">
@@ -398,7 +399,7 @@
                     }
                 }
 
-                renderSummary(rawPrinters ? rawPrinters.length : 0, [], duplicates, [], [], [], [], []);
+                renderSummary({ totalPrinters: rawPrinters ? rawPrinters.length : 0, gaps: [], duplicates, resets: [], largeJumps: [], negativeDeltas: [], perFieldAvg: [], consistencyMisses: [] });
                 const gtSummaryEl = document.getElementById('gt-summary');
                 gtSummaryEl.style.display = 'block';
                 gtSummaryEl.textContent = 'Ground Truth：共 ' + Object.keys(byIP).length + ' 台印表機、匹配 ' + gtMatch + '、差異 ' + gtMismatch;
@@ -547,7 +548,7 @@
                 });
             const uniqueDupes = dedupBy(duplicates, ['date', 'ip']);
 
-            renderSummary(rawPrinters ? rawPrinters.length : 0, uniqueGaps, uniqueResets, largeJumps, uniqueNeg, uniqueConsistency, uniquePerField, uniqueDupes);
+            renderSummary({ totalPrinters: rawPrinters ? rawPrinters.length : 0, gaps: uniqueGaps, resets: uniqueResets, largeJumps, negativeDeltas: uniqueNeg, consistencyMisses: uniqueConsistency, perFieldAvg: uniquePerField, duplicates: uniqueDupes });
 
             // Build sets for O(1) lookups
             const resetSet = new Set(uniqueResets.map(function(r) { return r.date + '|' + r.ip; }));
