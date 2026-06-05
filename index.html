@@ -2428,6 +2428,9 @@
             const end = start + PAGE_SIZE;
             const pagePrinters = printers.slice(start, end);
 
+            // 預建 supply 查找表（在 diffing 前一次性建立）
+            const supplyLookup = buildSupplyLookup(printers);
+
             // === key-based DOM diffing：只更新變更的列 ===
             const currentIds = new Set(renderedPrinterPageIds);
             const newIds = new Set(pagePrinters.map(p => p.id));
@@ -2520,10 +2523,10 @@
                 if (dailyTotalDiv) dailyTotalDiv.textContent = (p.daily_total || 0).toLocaleString();
                 if (dailyDetailDiv) dailyDetailDiv.textContent = `列印 ${p.daily_print || 0} / 影印 ${p.daily_copy || 0}`;
 
-                // cell 7-9: supply chips
-                const toner = getSupplyPercent(p, 'toner');
-                const ink = getSupplyPercent(p, 'ink');
-                const paper = getSupplyPercent(p, 'paper');
+                // cell 7-9: supply chips（使用查找表，O(1) 取代 O(N)）
+                const toner = getSupplyPercentFromLookup(supplyLookup, p.id, 'toner');
+                const ink = getSupplyPercentFromLookup(supplyLookup, p.id, 'ink');
+                const paper = getSupplyPercentFromLookup(supplyLookup, p.id, 'paper');
                 [
                     [cells[7], toner],
                     [cells[8], ink],
@@ -2616,6 +2619,24 @@
             const typeIds = { toner: 0, ink: 1, paper: 2 };
             const supply = (p.supplies || []).find(s => s.type === type || s.type === typeIds[type]);
             return supply ? supply.percent : 100;
+        }
+
+        // == 預建 supply 查找表：將 O(N*M) 降為 O(N+M) ==
+        function buildSupplyLookup(printers) {
+            const lookup = {};
+            printers.forEach(p => {
+                lookup[p.id] = {};
+                (p.supplies || []).forEach(s => {
+                    lookup[p.id][s.type] = s.percent;
+                });
+            });
+            return lookup;
+        }
+
+        function getSupplyPercentFromLookup(lookup, printerId, type) {
+            const typeIds = { toner: 0, ink: 1, paper: 2 };
+            const typeId = typeIds[type] ?? type;
+            return (lookup[printerId] && lookup[printerId][typeId] !== undefined) ? lookup[printerId][typeId] : 100;
         }
 
         function getSupplyColor(percent) {
