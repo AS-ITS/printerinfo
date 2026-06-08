@@ -2624,10 +2624,23 @@
         }
 
         // == 彩色列印判斷 ==
+        // 可擴展的模式清單：依品牌/系列添加新規則，便於維護
+        const COLOR_MODEL_PATTERNS = [
+            /color|colour|彩色/i,                        // 名稱含 color/colour/彩色
+            /\bC\d{3,}/i,                                // Canon C6000、Lexmark C7720、Xerox C260 等
+            /\bCP\d{3,}/i,                               // HP CP1215、CP2025 等
+            /\bCM\d{3,}/i,                               // HP CM1317、CM2320 等
+            /\bMC\d{3,}/i,                               // Lexmark MC2532、Xerox MC3422 等
+            /\bCD\d{3,}/i,                               // Kyocera Color 系列
+            /Canon.*C\d/i,                               // Canon iR-ADVANCE C1025 等
+        ];
+
         function isColorPrinter(model) {
             if (!model) return false;
-            // 檢查 "Color" 或 "color" 或 Canon C 系列
-            return /color|c[0-9]/i.test(model) || /Canon.*(C\d)/i.test(model);
+            for (const pattern of COLOR_MODEL_PATTERNS) {
+                if (pattern.test(model)) return true;
+            }
+            return false;
         }
 
         // == 輔助函數 ==
