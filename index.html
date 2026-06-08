@@ -2505,8 +2505,13 @@
                     row = tr;
                 }
 
-                // 更新列內容
+                // 更新列內容（先統一 escape，避免重複呼叫 escapeHtml）
                 const cells = row.cells;
+                const eUnit = escapeHtml(p.unit) || '-';
+                const eLocation = escapeHtml(p.location) || '-';
+                const eModel = escapeHtml(p.model) || '-';
+                const eIp = escapeHtml(p.ip_address);
+
                 // cell 0: status
                 const dot = cells[0].querySelector('.status-dot');
                 const text = cells[0].querySelector('.status-text');
@@ -2514,24 +2519,24 @@
                 if (text) text.textContent = statusLabel;
 
                 // cell 1: unit
-                cells[1].textContent = escapeHtml(p.unit) || '-';
+                cells[1].textContent = eUnit;
 
                 // cell 2: location + model
                 const locDiv = cells[2].querySelector('.font-bold');
                 const modelDiv = cells[2].querySelector('.text-\\[11px\\]');
                 const modelMdDiv = cells[2].querySelector('.text-\\[11px\\].md\\:hidden');
-                if (locDiv) locDiv.textContent = escapeHtml(p.location) || '-';
-                if (modelDiv) modelDiv.textContent = escapeHtml(p.model) || '-';
-                if (modelMdDiv) modelMdDiv.textContent = escapeHtml(p.ip_address);
+                if (locDiv) locDiv.textContent = eLocation;
+                if (modelDiv) modelDiv.textContent = eModel;
+                if (modelMdDiv) modelMdDiv.textContent = eIp;
 
                 // cell 3: model (desktop)
-                cells[3].textContent = escapeHtml(p.model);
+                cells[3].textContent = eModel;
 
                 // cell 4: color printer
-                cells[4].textContent = isColorPrinter(escapeHtml(p.model)) ? '✔' : '✘';
+                cells[4].textContent = isColorPrinter(eModel) ? '✔' : '✘';
 
                 // cell 5: IP (desktop)
-                cells[5].textContent = escapeHtml(p.ip_address);
+                cells[5].textContent = eIp;
 
                 // cell 6: daily stats
                 const dailyTotalDiv = cells[6].querySelector('.text-lg');
