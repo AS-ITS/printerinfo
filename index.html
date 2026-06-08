@@ -1183,8 +1183,11 @@
                         </svg>
                         每日總印量趨勢
                     </h3>
-                    <div class="chart-container">
+                    <div id="trend-chart-section" class="chart-container">
                         <canvas id="trend-chart"></canvas>
+                        <div id="trend-chart-empty" class="hidden text-center text-slate-500 text-sm font-bold py-12">
+                            選定日期範圍內無列印紀錄
+                        </div>
                     </div>
                 </div>
 
@@ -1807,10 +1810,15 @@
             const sortedDates = Object.keys(dateMap).sort();
             const ctx = document.getElementById('trend-chart').getContext('2d');
 
-            if (sortedDates.length === 0) return;
-
+            // 先銷毀舊圖表，避免空資料時舊圖表殘留
             destroyChart(trendChartInstance, 'trend-chart');
             trendChartInstance = null;
+
+            if (sortedDates.length === 0) {
+                setTrendChartEmpty(true);
+                return;
+            }
+            setTrendChartEmpty(false);
 
             trendChartInstance = new Chart(ctx, {
                 type: 'line',
@@ -1847,6 +1855,14 @@
         function destroyYearlyChart() {
             destroyChart(yearlyChartInstance, 'yearly-chart');
             yearlyChartInstance = null;
+        }
+
+        function setTrendChartEmpty(isEmpty) {
+            const empty = document.getElementById('trend-chart-empty');
+            const canvas = document.getElementById('trend-chart');
+            if (!empty || !canvas) return;
+            empty.classList.toggle('hidden', !isEmpty);
+            canvas.classList.toggle('hidden', isEmpty);
         }
 
         function setYearlyChartEmpty(message, isEmpty) {
