@@ -521,8 +521,6 @@
             isLoading = true;
 
             try {
-                const today = new Date().toISOString().substring(0, 10);
-
                 // 1. 取得所有印表機
                 console.log('[scan-queue] querying printers...');
                 const { data: rawPrinters, error: printersError } = await supabaseClient
@@ -542,12 +540,14 @@
                     return;
                 }
 
-                // 2. 取得今日每日統計（daily_stats 視圖已計算好 daily_total/daily_print/daily_copy/daily_fax）
-                console.log('[scan-queue] querying daily_stats for', today);
+                // 2. 取得保留期內每日統計（daily_stats 視圖已計算好 daily_total/daily_print/daily_copy/daily_fax）
+                const cutoffDate = getRetentionCutoff();
+                console.log('[scan-queue] querying daily_stats since', cutoffDate);
                 const { data: dailyStats, error: statsError } = await supabaseClient
                     .from('daily_stats')
                     .select('*')
-                    .eq('recorded_at', today);
+                    .gte('recorded_at', cutoffDate)
+                    .order('recorded_at', { ascending: true });
 
                 if (statsError) { console.error('[scan-queue] daily_stats error:', statsError); throw statsError; }
                 console.log('[scan-queue] daily_stats count:', dailyStats?.length || 0);
